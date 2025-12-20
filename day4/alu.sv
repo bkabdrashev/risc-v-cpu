@@ -14,7 +14,7 @@ module alu (
     // ADD
       rout = rdata1 + rdata2;
     end else begin 
-      rout = 32'hEFEF_EFEF;
+      rout = 32'd0;
     end
   end
 

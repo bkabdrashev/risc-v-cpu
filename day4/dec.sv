@@ -20,23 +20,33 @@ module dec (
     sign = inst[31];
     if (opcode == 7'b0010011) begin
       // ADDI
-      if (sign) imm = { 20'sd-1, inst[31:20] };
-      else imm = { 20'd0, inst[31:20] };
+      if (sign) imm = { -20'sd1, inst[31:20] };
+      else imm = { 20'sd0, inst[31:20] };
       wen = 1;
     end else if (opcode == 7'b1100111) begin
       // JALR
-      if (sign) imm = { 20'sd-1, inst[31:20] };
-      else imm = { 20'd0, inst[31:20] };
+      if (sign) imm = { -20'sd1, inst[31:20] };
+      else imm = { 20'sd0, inst[31:20] };
       wen = 1;
     end else if (opcode == 7'b0110011) begin
       // ADD
-      if (sign) imm = { 12'sd-1, inst[31:12] };
-      else imm = { 12'd0, inst[31:12] };
+      if (sign) imm = { -12'sd1, inst[31:12] };
+      else imm = { 12'sd0, inst[31:12] };
       wen = 1;
-    end else  if (opcode == 7'b0110111) begin
+    end else if (opcode == 7'b0110111) begin
       // LUI
       imm = { inst[31:12], 12'd0 };
       wen = 1;
+    end else if (opcode == 7'b0000011) begin
+      // LW
+      if (sign) imm = { -20'sd1, inst[31:20] };
+      else imm = { 20'sd0, inst[31:20] };
+      wen = 1;
+    end else if (opcode == 7'b0100011) begin
+      // SW
+      if (sign) imm = { -20'sd1, inst[31:25], inst[11:7] };
+      else imm = { 20'sd0, inst[31:25], inst[11:7] };
+      wen = 0;
     end else begin
       imm = 0;
       wen = 0;

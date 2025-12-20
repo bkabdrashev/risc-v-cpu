@@ -48,38 +48,8 @@ int main(int argc, char** argv, char** env) {
     const uint32_t n_inst = 28;
     inst_size_t insts[n_inst] = {
       li(10, 1),     // 0
-      li(0, 2),      // 4
-      li(0, 3),      // 8
-
-      addi(1, 2, 2), 
-      add(3, 2, 3),  
-
-      addi(1, 2, 2), 
-      add(3, 2, 3),  
-
-      addi(1, 2, 2), 
-      add(3, 2, 3),  
-
-      addi(1, 2, 2), 
-      add(3, 2, 3),  
-
-      addi(1, 2, 2), 
-      add(3, 2, 3),  
-
-      addi(1, 2, 2), 
-      add(3, 2, 3),  
-
-      addi(1, 2, 2), 
-      add(3, 2, 3),  
-
-      addi(1, 2, 2), 
-      add(3, 2, 3),  
-
-      addi(1, 2, 2), 
-      add(3, 2, 3),  
-
-      addi(1, 2, 2), 
-      add(3, 2, 3),  
+      sw(4, 1, 0),
+      lw(4, 0, 2)
     };
 
     dut->clk = 0;
@@ -101,7 +71,7 @@ int main(int argc, char** argv, char** env) {
 
   Trigger clock = {};
   Trigger reset = {};
-  for (uint64_t t = 0; t < 60; t++) {
+  for (uint64_t t = 0; t < 20; t++) {
     dut->eval();
     cpu_eval(gm, clock, reset);
     compare(dut, gm, t);

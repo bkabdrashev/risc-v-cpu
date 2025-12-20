@@ -23,29 +23,32 @@ module miniRV (
   logic        dec_wen;
   logic [6:0]  dec_opcode;
 
-  logic is_addr;
-  logic [31:0]  addr;
+  logic is_pc_jump;
+  logic [31:0]  pc_addr;
 
   logic [31:0] rdata1;
   logic [31:0] rdata2;
   logic [31:0] alu_res;
 
-  // logic [31:0] ram_rdata;
-  // logic [31:0] ram_addr;
   logic [31:0] rom_addr_or_pc;
 
   logic [31:0] wdata;
 
+  logic        ram_wen;
+  logic [31:0] ram_addr;
+  logic [31:0] ram_wdata;
+  logic [31:0] ram_rdata;
+
   pc u_pc(
     .clk(clk),
     .reset(reset),
-    .in_addr(addr),
-    .is_addr(is_addr),
+    .in_addr(pc_addr),
+    .is_addr(is_pc_jump),
     .out_addr(pc)
   );
 
   // TODO: write to ram/rom
-  // ram64k ram(.clk(clk), .addr(ram_addr), .read_data(ram_rdata));
+  ram64k ram(.clk(clk), .wen(ram_wen), .wdata(ram_wdata), .addr(ram_addr), .read_data(ram_rdata));
   ram64k rom(.clk(clk), .wen(rom_wen), .wdata(rom_wdata), .addr(rom_addr_or_pc), .read_data(inst));
 
   dec u_dec(
@@ -64,6 +67,7 @@ module miniRV (
     .rdata1(rdata1),
     .rdata2(rdata2),
     .imm(dec_imm),
+
     .rout(alu_res)
   );
 
@@ -75,6 +79,7 @@ module miniRV (
     .wdata(wdata),
     .rs1(dec_rs1),
     .rs2(dec_rs2),
+
     .rdata1(rdata1),
     .rdata2(rdata2),
     .reg_out0(reg0),
@@ -91,34 +96,70 @@ module miniRV (
     if (rom_wen) begin
       rom_addr_or_pc = rom_addr;
       wdata = 0;
-      addr = 0;
-      is_addr = 0;
+      pc_addr = 0;
+      is_pc_jump = 0;
+      ram_wen = 0;
+      ram_addr = 0;
+      ram_wdata = 0;
     end else begin
       rom_addr_or_pc = pc;
       if (dec_opcode == 7'b0010011) begin
         // ADDI
+        ram_wen = 0;
+        ram_addr = 0;
+        ram_wdata = 0;
         wdata = alu_res;
-        addr = 0;
-        is_addr = 0;
+        pc_addr = 0;
+        is_pc_jump = 0;
       end else if (dec_opcode == 7'b1100111) begin
         // JALR
-        addr = (rdata1 + dec_imm) & ~1;
+        ram_wen = 0;
+        ram_addr = 0;
+        ram_wdata = 0;
+        pc_addr = (rdata1 + dec_imm) & ~1;
         wdata = pc+4;
-        is_addr = 1;
+        is_pc_jump = 1;
       end else if (dec_opcode == 7'b0110011) begin
         // ADD
+        ram_wen = 0;
+        ram_addr = 0;
+        ram_wdata = 0;
         wdata = alu_res;
-        addr = 0;
-        is_addr = 0;
+        pc_addr = 0;
+        is_pc_jump = 0;
       end else if (dec_opcode == 7'b0110111) begin
         // LUI
+        ram_wen = 0;
+        ram_addr = 0;
+        ram_wdata = 0;
         wdata = dec_imm;
-        addr = 0;
-        is_addr = 0;
-      end else begin
-        addr = 0;
+        pc_addr = 0;
+        is_pc_jump = 0;
+      end else if (dec_opcode == 7'b0000011) begin
+        // LW
+        ram_wen = 0;
+        ram_addr = rdata1 + dec_imm;
+        ram_wdata = 0;
+        wdata = ram_rdata;
+        pc_addr = 0;
+        is_pc_jump = 0;
+      end else if (dec_opcode == 7'b0100011) begin
+        // SW
+        ram_wen = 1;
+        ram_addr = rdata1 + dec_imm;
+        ram_wdata = rdata2;
         wdata = 0;
-        is_addr = 0;
+        pc_addr = 0;
+        is_pc_jump = 0;
+      end else begin
+        // NOT IMPLEMENTED
+        ram_wen = 0;
+        ram_addr = 0;
+        ram_wdata = 0;
+        wdata = 0;
+        pc_addr = 0;
+        wdata = 0;
+        is_pc_jump = 0;
       end
     end
   end
