@@ -1,2 +1,3 @@
 # translates the main.sv with trace and test bench enabled; then build the obj file and runs;
 verilator -Wall --trace -cc main.sv --exe tb_main.cpp && make -C obj_dir -f Vmain.mk Vmain && ./obj_dir/Vmain
+verilator -Wall --trace -cc miniRV.sv --exe tb_miniRV.cpp && make -C obj_dir -f VminiRV.mk VminiRV && ./obj_dir/VminiRV

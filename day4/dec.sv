@@ -1,38 +1,43 @@
 module dec (
-  input logic [7:0] inst,
-  output logic [1:0] rd,
-  output logic [1:0] rs1,
-  output logic [1:0] rs2,
-  output logic [3:0] imm,
-  output logic [1:0] opcode,
+  input logic [31:0] inst,
+
+  output logic [4:0] rd,
+  output logic [4:0] rs1,
+  output logic [4:0] rs2,
+  output logic [6:0] opcode,
   output logic       wen,
-  output logic [3:0] addr
+  output logic [31:0] imm
 );
 
+  logic sign; 
+
   always_comb begin
-    rd[0] = inst[4];
-    rd[1] = inst[5];
+    opcode = inst[6:0];
+    rd = inst[11:7];
+    rs1 = inst[19:15];
+    rs2 = inst[24:20];
 
-    rs2[0] = inst[0];
-    rs2[1] = inst[1];
-
-    rs1[0] = inst[2];
-    rs1[1] = inst[3];
-
-    imm[0] = inst[0];
-    imm[1] = inst[1];
-    imm[2] = inst[2];
-    imm[3] = inst[3];
-
-    addr[0] = inst[2];
-    addr[1] = inst[3];
-    addr[2] = inst[4];
-    addr[3] = inst[5];
-
-    wen = !(inst[6] & inst[7]);
-
-    opcode[0] = inst[6];
-    opcode[1] = inst[7];
+    sign = inst[31];
+    if (opcode == 7'b0010011) begin
+      // ADDI
+      imm = { 20'd0, inst[31:20] };
+      wen = 1;
+    end else if (opcode == 7'b1100111) begin
+      // JALR
+      imm = { 20'd0, inst[31:20] };
+      wen = 1;
+    end else if (opcode == 7'b0110011) begin
+      // ADD
+      imm = { 12'd0, inst[31:12] };
+      wen = 1;
+    end else  if (opcode == 7'b0110111) begin
+      // LUI
+      imm = { inst[31:12], 12'd0 };
+      wen = 1;
+    end else begin
+      imm = 0;
+      wen = 0;
+    end
   end
 
 endmodule;
