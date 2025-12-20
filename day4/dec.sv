@@ -20,15 +20,18 @@ module dec (
     sign = inst[31];
     if (opcode == 7'b0010011) begin
       // ADDI
-      imm = { 20'd0, inst[31:20] };
+      if (sign) imm = { 20'sd-1, inst[31:20] };
+      else imm = { 20'd0, inst[31:20] };
       wen = 1;
     end else if (opcode == 7'b1100111) begin
       // JALR
-      imm = { 20'd0, inst[31:20] };
+      if (sign) imm = { 20'sd-1, inst[31:20] };
+      else imm = { 20'd0, inst[31:20] };
       wen = 1;
     end else if (opcode == 7'b0110011) begin
       // ADD
-      imm = { 12'd0, inst[31:12] };
+      if (sign) imm = { 12'sd-1, inst[31:12] };
+      else imm = { 12'd0, inst[31:12] };
       wen = 1;
     end else  if (opcode == 7'b0110111) begin
       // LUI

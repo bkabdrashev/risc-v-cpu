@@ -165,19 +165,23 @@ Dec_out dec_eval(inst_size_t inst) {
   out.reg_dest.v = take_bits_range(inst.v, 7, 11);
   out.reg_src1.v = take_bits_range(inst.v, 15, 19);
   out.reg_src2.v = take_bits_range(inst.v, 20, 24);
+  bit sign = take_bit(inst.v, 31, 31);
   if (out.opcode.v == 0b0010011) {
     // ADDI
-    out.imm.v = take_bits_range(inst.v, 20, 31);
+    if (sign.v) out.imm.v = take_bits_range(inst.v, 20, 31);
+    else        out.imm.v = -1 | take_bits_range(inst.v, 20, 31);
     out.write_enable.v = 1;
   }
   else if (out.opcode.v == 0b1100111) {
     // JALR
-    out.imm.v = take_bits_range(inst.v, 20, 31);
+    if (sign.v) out.imm.v = take_bits_range(inst.v, 20, 31);
+    else        out.imm.v = -1 | take_bits_range(inst.v, 20, 31);
     out.write_enable.v = 1;
   }
   else if (out.opcode.v == 0b0110011) {
     // ADD
-    out.imm.v = take_bits_range(inst.v, 12, 31);
+    if (sign.v) out.imm.v = take_bits_range(inst.v, 12, 31);
+    else        out.imm.v = -1 | take_bits_range(inst.v, 12, 31);
     out.write_enable.v = 1;
   }
   else if (out.opcode.v == 0b0110111) {
