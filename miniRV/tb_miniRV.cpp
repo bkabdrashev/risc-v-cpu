@@ -99,6 +99,12 @@ void reset_gm_regs(miniRV* gm) {
 }
 
 void dut_ram_write(uint32_t addr, uint32_t wdata, uint8_t wstrb) {
+  svScope ram_scope = svGetScopeFromName("TOP.miniRV.u_ram");
+  if (!ram_scope) {
+    std::cerr << "ERROR: svGetScopeFromName(\"TOP.miniRV.u_ram\") returned NULL\n";
+    std::exit(1);
+  }
+  svSetScope(ram_scope);
   VminiRV::sv_mem_write(addr, wdata, wstrb);
 }
 
@@ -110,6 +116,26 @@ uint32_t dut_ram_read(uint32_t addr) {
   }
   svSetScope(ram_scope);
   return VminiRV::sv_mem_read(addr);
+}
+
+uint8_t* dut_ram_ptr() {
+  svScope ram_scope = svGetScopeFromName("TOP.miniRV.u_ram");
+  if (!ram_scope) {
+    std::cerr << "ERROR: svGetScopeFromName(\"TOP.miniRV.u_ram\") returned NULL\n";
+    std::exit(1);
+  }
+  svSetScope(ram_scope);
+  return (uint8_t*)VminiRV::sv_mem_ptr();
+}
+
+uint8_t* dut_vga_ptr() {
+  svScope ram_scope = svGetScopeFromName("TOP.miniRV.u_ram");
+  if (!ram_scope) {
+    std::cerr << "ERROR: svGetScopeFromName(\"TOP.miniRV.u_ram\") returned NULL\n";
+    std::exit(1);
+  }
+  svSetScope(ram_scope);
+  return (uint8_t*)VminiRV::sv_vga_ptr();
 }
 
 void dut_rom_write(uint32_t addr, uint32_t wdata, uint8_t wstrb) {
@@ -140,7 +166,15 @@ bool compare_reg(uint64_t sim_time, const char* name, uint32_t dut_v, uint32_t g
   return true;
 }
 
-bool compare(VminiRV* dut, miniRV* gm, uint64_t sim_time) {
+bool compare_mem(uint64_t sim_time, uint32_t address, uint32_t dut_v, uint32_t gm_v) {
+  if (dut_v != gm_v) {
+    printf("Test Failed at time %lu. %x mismatch: dut_v = %i vs gm_v = %i\n", sim_time, address, dut_v, gm_v);
+    return false;
+  }
+  return true;
+}
+
+bool compare(VminiRV* dut, miniRV* gm, uint8_t* mem, uint8_t* vga, uint64_t sim_time) {
   bool result = true;
   result &= compare_reg(sim_time, "PC", dut->pc, gm->pc.v);
   for (uint32_t i = 0; i < N_REGS; i++) {
@@ -149,14 +183,20 @@ bool compare(VminiRV* dut, miniRV* gm, uint64_t sim_time) {
     char name[] = {'R', digit1, digit0, '\0'};
     result &= compare_reg(sim_time, name, dut->regs_out[i], gm->regs[i].v);
   }
-  // for (uint32_t i = 0; i < MEM_SIZE; i++) {
-  //   char digit0 = i%10 + '0';
-  //   char digit1 = i/10 + '0';
-  //   char name[] = {'M', digit1, digit0, '\0'};
-  //   uint32_t dut_v = dut_ram_read(i);
-  //   uint32_t gm_v = gm_mem_read(gm, {i}).v;
-  //   result &= compare_reg(sim_time, name, dut_v, gm_v);
-  // }
+  // result &= memcmp(gm->mem, mem, MEM_SIZE) == 0;
+  // result &= memcmp(gm->vga, vga, VGA_SIZE) == 0;
+  if (!result) {
+    for (uint32_t i = 0; i < MEM_SIZE; i++) {
+      uint32_t dut_v = dut_ram_read(i);
+      uint32_t gm_v = gm_mem_read(gm, {i}).v;
+      result &= compare_mem(sim_time, i, dut_v, gm_v);
+    }
+    for (uint32_t i = VGA_START; i < VGA_END; i++) {
+      uint32_t dut_v = dut_ram_read(i);
+      uint32_t gm_v = gm_mem_read(gm, {i}).v;
+      result &= compare_mem(sim_time, i, dut_v, gm_v);
+    }
+  }
   return result;
 }
 
@@ -233,27 +273,78 @@ inst_size_t random_instruction(std::mt19937* gen) {
   return inst;
 }
 
+inst_size_t random_instruction_mem_load_or_store(std::mt19937* gen) {
+  uint32_t inst_id = random_range(gen, 0, 4);
+  inst_size_t inst = {};
+  switch (inst_id) {
+    case 0: { // LW
+      uint32_t imm = random_bits(gen, 12);
+      uint32_t rs1 = random_bits(gen, 4);
+      uint32_t rd  = random_bits(gen, 4);
+      inst = lw(imm, rs1, rd);
+    } break;
+    case 1: { // LB
+      uint32_t imm = random_bits(gen, 12);
+      uint32_t rs1 = random_bits(gen, 4);
+      uint32_t rd  = random_bits(gen, 4);
+      inst = lbu(imm, rs1, rd);
+    } break;
+    case 2: { // SW
+      uint32_t imm = random_bits(gen, 12);
+      uint32_t rs2 = random_bits(gen, 4);
+      uint32_t rs1  = random_bits(gen, 4);
+      inst = sw(imm, rs2, rs1);
+    } break;
+    case 3: { // SB
+      uint32_t imm = random_bits(gen, 12);
+      uint32_t rs2 = random_bits(gen, 4);
+      uint32_t rs1  = random_bits(gen, 4);
+      inst = sb(imm, rs2, rs1);
+    } break;
+  }
+  return inst;
+}
+
 void random_difftest() {
+
   miniRV *gm = new miniRV;
   VminiRV *dut = new VminiRV;
-  gm_mem_reset(gm);
+
+  // Verilated::traceEverOn(true);
+  // VerilatedVcdC *m_trace = new VerilatedVcdC;
+  // dut->trace(m_trace, 5);
+
+  /*
+  GmVcdTrace gm_trace{gm};
+  m_trace->spTrace()->addCallback(
+      &GmVcdTrace::init_cb,
+      &GmVcdTrace::full_cb,
+      &GmVcdTrace::chg_cb,
+      &gm_trace);
+  */
+
+  // m_trace->open("waveform.vcd");
+
+  uint8_t* memory = dut_ram_ptr();
+  uint8_t* vga = dut_vga_ptr();
+
   uint32_t n_insts = 200;
   inst_size_t* insts = new inst_size_t[n_insts];
   bool test_not_failed = true;
   uint64_t tests_passed = 0;
   uint64_t max_sim_time = 400;
-  uint64_t max_tests = 1000;
+  uint64_t max_tests = 200;
   // uint64_t seed = hash_uint64_t(std::time(0));
-  // uint64_t seed = 3263282379841580567;
-  uint64_t seed = 10714955119269546755lu;
+  // uint64_t seed = 3263282379841580567lu;
+  // uint64_t seed = 10714955119269546755lu;
+  uint64_t seed = 12610096651643082169lu;
   do {
-
     printf("======== SEED:%lu ===== %u/%u =========\n", seed, tests_passed, max_tests);
     std::random_device rd;
     std::mt19937 gen(rd());
     gen.seed(seed);
     for (uint32_t i = 0; i < n_insts; i++) {
-      inst_size_t inst = random_instruction(&gen);
+      inst_size_t inst = random_instruction_mem_load_or_store(&gen);
       insts[i] = inst;
     }
 
@@ -279,8 +370,9 @@ void random_difftest() {
       dut->eval();
       inst_size_t inst = gm_mem_read(gm, gm->pc);
       cpu_eval(gm);
+      // m_trace->dump(t);
 
-      test_not_failed &= compare(dut, gm, t);
+      test_not_failed &= compare(dut, gm, memory, vga, t);
 
       if (!test_not_failed) {
         printf("[%u] %u inst: ", t, inst.v);
@@ -300,7 +392,8 @@ void random_difftest() {
     if (test_not_failed) {
       tests_passed++;
     }
-  } while (tests_passed < max_tests);
+  } while (test_not_failed && tests_passed < max_tests);
+  // m_trace->close();
 
 
   std::cout << "Tests results:\n" << tests_passed << " / " << max_tests << " have passed\n";
@@ -316,15 +409,6 @@ void draw_image_raylib(char* image, uint32_t width, uint32_t height) {
   InitWindow(width, height, "Framebuffer viewer");
   SetTargetFPS(60);
 
-  // Create a texture in the format you expect your buffer to be in.
-  // Most common: RGBA8888 (bytes: R, G, B, A)
-  Image img = {};
-  img.data = fb; 
-  img.width = width;
-  img.height = height;
-  img.mipmaps = 1;
-  img.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
-
   while (!WindowShouldClose()) {
     BeginDrawing();
     ClearBackground(BLACK);
@@ -332,7 +416,7 @@ void draw_image_raylib(char* image, uint32_t width, uint32_t height) {
     // Scale it up to the window
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
-        uint32_t p = ((uint32_t*)fb)[y*256 + x];
+        uint32_t p = ((uint32_t*)fb)[y*height + x];
         unsigned char blue = p & 0xff;
         unsigned char green = (p >> 8) & 0xff;
         unsigned char red = (p >> 16) & 0xff;

@@ -58,3 +58,10 @@ extern "C" void mem_reset() {
   memset(memory, 0, MEM_SIZE);
   memset(vga, 0, VGA_SIZE);
 }
+extern "C" void mem_ptr(uint64_t* out) {
+  *out = (uint64_t)memory;
+}
+
+extern "C" void vga_ptr(uint64_t* out) {
+  *out = (uint64_t)vga;
+}

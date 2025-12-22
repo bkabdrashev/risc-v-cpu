@@ -15,6 +15,20 @@ module ram (
     return result;
   endfunction
 
+  export "DPI-C" function sv_mem_ptr;
+  function longint unsigned sv_mem_ptr();
+    longint unsigned mem_ptr_out;
+    mem_ptr(mem_ptr_out);
+    return mem_ptr_out;
+  endfunction
+
+  export "DPI-C" function sv_vga_ptr;
+  function longint unsigned sv_vga_ptr();
+    longint unsigned vga_ptr_out;
+    vga_ptr(vga_ptr_out);
+    return vga_ptr_out;
+  endfunction
+
   export "DPI-C" function sv_mem_write;
   function void sv_mem_write(input int unsigned mem_addr, input int unsigned mem_wdata, input byte mem_wstrb);
     mem_write(mem_addr, mem_wdata, mem_wstrb);
@@ -23,6 +37,8 @@ module ram (
   import "DPI-C" context task mem_write(input int unsigned address, input int unsigned write, input byte wstrb);
   import "DPI-C" context task mem_read(input int unsigned address, output int unsigned read);
   import "DPI-C" context task mem_reset();
+  import "DPI-C" context task mem_ptr(output longint unsigned mem_ptr_out);
+  import "DPI-C" context task vga_ptr(output longint unsigned vga_ptr_out);
 
   always_ff @(posedge clk or posedge reset) begin
     if (reset) begin

@@ -241,8 +241,8 @@ struct RF_out {
 
 RF_out rf_read(miniRV* cpu, reg_index_t reg_src1, reg_index_t reg_src2) {
   RF_out out = {};
-  out.rdata1.v = cpu->regs[reg_src1.v].v;
-  out.rdata2.v = cpu->regs[reg_src2.v].v;
+  if (reg_src1.v < N_REGS) out.rdata1.v = cpu->regs[reg_src1.v].v;
+  if (reg_src2.v < N_REGS) out.rdata2.v = cpu->regs[reg_src2.v].v;
   for (int i = 0; i < N_REGS; i++) {
     out.regs[i].v = cpu->regs[i].v;
   }
@@ -256,7 +256,7 @@ void rf_write(miniRV* cpu, bit write_enable, reg_index_t reg_dest, reg_size_t wr
     }
   }
   else if (is_positive_edge(cpu->clock)) {
-    if (write_enable.v && reg_dest.v != 0) {
+    if (write_enable.v && reg_dest.v != 0 && reg_dest.v < N_REGS) {
       cpu->regs[reg_dest.v] = write_data;
     }
   }
@@ -497,6 +497,47 @@ void cpu_reset_regs(miniRV* cpu) {
     cpu->regs[i].v = 0;
   }
 }
+/*
+struct GmVcdTrace {
+  miniRV* gm;
+
+  static void init_cb(VerilatedVcd* vcdp, void* userthis, vluint32_t code) {
+    auto* self = static_cast<GmVcdTrace*>(userthis);
+    (void)self;
+
+    const vluint32_t c = code;
+
+    vcdp->module("gm");
+    vcdp->declBus(c + 0, "pc", 0, 31, 0);
+
+    for (int i = 0; i < 32; i++) {
+      char name[8];
+      std::snprintf(name, sizeof(name), "x%02d", i);
+      vcdp->declBus(c + 1 + i, name, 0, 31, 0);
+    }
+  }
+
+  static void full_cb(VerilatedVcd* vcdp, void* userthis, vluint32_t code) {
+    auto* self = static_cast<GmVcdTrace*>(userthis);
+    const vluint32_t c = code;
+
+    vcdp->fullBus(c + 0, self->gm->pc.v, 32);
+    for (int i = 0; i < 32; i++) {
+      vcdp->fullBus(c + 1 + i, self->gm->regs[i].v, 32);  // <-- adjust to your reg storage
+    }
+  }
+
+  static void chg_cb(VerilatedVcd* vcdp, void* userthis, vluint32_t code) {
+    auto* self = static_cast<GmVcdTrace*>(userthis);
+    const vluint32_t c = code;
+
+    vcdp->chgBus(c + 0, self->gm->pc.v, 32);
+    for (int i = 0; i < 32; i++) {
+      vcdp->chgBus(c + 1 + i, self->gm->regs[i].v, 32);  // <-- adjust
+    }
+  }
+};
+  */
 
 inst_size_t addi(uint32_t imm, uint32_t reg_src1, uint32_t reg_dest) {
   uint32_t inst_u32 = (imm << 20) | (reg_src1 << 15) | (FUNCT3_ADDI << 12) | (reg_dest << 7) | OPCODE_ADDI;
