@@ -355,8 +355,8 @@ void vga_image_gm() {
 
 int main(int argc, char** argv, char** env) {
   // random_difftest();
-  vga_image_test();
-  // vga_image_gm();
+  // vga_image_test();
+  vga_image_gm();
   exit(EXIT_SUCCESS);
 }
 
