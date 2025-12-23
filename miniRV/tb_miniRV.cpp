@@ -14,6 +14,21 @@
 #include <stdexcept>
 #include <algorithm>
 
+struct Tester_gm_dut {
+  miniRV* gm;
+  VminiRV* dut;
+  GmVcdTrace* gm_trace;
+  VerilatedVcdC* m_trace;
+
+  inst_size_t* insts;
+  uint32_t n_insts;
+
+  uint64_t max_sim_time;
+
+  uint8_t* dpi_c_memory;
+  uint8_t* dpi_c_vga;
+};
+
 static inline std::string trim(std::string s) {
   auto notSpace = [](unsigned char c){ return !std::isspace(c); };
   s.erase(s.begin(), std::find_if(s.begin(), s.end(), notSpace));
@@ -199,27 +214,27 @@ bool compare_mem(uint64_t sim_time, uint32_t address, uint32_t dut_v, uint32_t g
   return true;
 }
 
-bool compare(VminiRV* dut, miniRV* gm, uint8_t* mem, uint8_t* vga, uint64_t sim_time) {
+bool compare(Tester_gm_dut* tester, uint64_t sim_time) {
   bool result = true;
   // result &= compare_reg(sim_time, "EBREAK", dut->ebreak, gm->ebreak.v);
-  result &= compare_reg(sim_time, "PC", dut->pc, gm->pc.v);
+  result &= compare_reg(sim_time, "PC", tester->dut->pc, tester->gm->pc.v);
   for (uint32_t i = 0; i < N_REGS; i++) {
     char digit0 = i%10 + '0';
     char digit1 = i/10 + '0';
     char name[] = {'R', digit1, digit0, '\0'};
-    result &= compare_reg(sim_time, name, dut->regs_out[i], gm->regs[i].v);
+    result &= compare_reg(sim_time, name, tester->dut->regs_out[i], tester->gm->regs[i].v);
   }
-  result &= memcmp(gm->mem, mem, MEM_SIZE) == 0;
-  result &= memcmp(gm->vga, vga, VGA_SIZE) == 0;
+  result &= memcmp(tester->gm->mem, tester->dpi_c_memory, MEM_SIZE) == 0;
+  result &= memcmp(tester->gm->vga, tester->dpi_c_vga, VGA_SIZE) == 0;
   if (!result) {
     for (uint32_t i = 0; i < MEM_SIZE; i++) {
       uint32_t dut_v = dut_ram_read(i);
-      uint32_t gm_v = gm_mem_read(gm, {i}).v;
+      uint32_t gm_v = gm_mem_read(tester->gm, {i}).v;
       result &= compare_mem(sim_time, i, dut_v, gm_v);
     }
     for (uint32_t i = VGA_START; i < VGA_END; i++) {
       uint32_t dut_v = dut_ram_read(i);
-      uint32_t gm_v = gm_mem_read(gm, {i}).v;
+      uint32_t gm_v = gm_mem_read(tester->gm, {i}).v;
       result &= compare_mem(sim_time, i, dut_v, gm_v);
     }
   }
@@ -334,41 +349,32 @@ inst_size_t random_instruction_mem_load_or_store(std::mt19937* gen) {
   return inst;
 }
 
-struct Tester_gm_dut {
-  miniRV* gm;
-  VminiRV* dut;
-  GmVcdTrace* gm_trace;
-  VerilatedVcdC* m_trace;
-
-  uint8_t* dpi_c_memory;
-  uint8_t* dpi_c_vga;
-};
-
-Tester_gm_dut new_tester() {
-  Tester_gm_dut result = {};
-  result.gm = new miniRV;
-  result.dut = new VminiRV;
+Tester_gm_dut* new_tester() {
+  Tester_gm_dut* result = new Tester_gm_dut;
+  result->gm = new miniRV;
+  result->dut = new VminiRV;
   Verilated::traceEverOn(true);
-  result.m_trace = new VerilatedVcdC;
-  result.dut->trace(result.m_trace, 5);
+  result->m_trace = new VerilatedVcdC;
+  result->dut->trace(result->m_trace, 5);
 
-  result.gm_trace = new GmVcdTrace(result.gm);
-  result.m_trace->spTrace()->addInitCb(&GmVcdTrace::init_cb, result.gm_trace);
-  result.m_trace->spTrace()->addFullCb(&GmVcdTrace::full_cb, 0, result.gm_trace);
-  result.m_trace->spTrace()->addChgCb (&GmVcdTrace::chg_cb,  0, result.gm_trace);
-  result.m_trace->open("waveform.vcd");
+  result->gm_trace = new GmVcdTrace(result->gm);
+  result->m_trace->spTrace()->addInitCb(&GmVcdTrace::init_cb, result->gm_trace);
+  result->m_trace->spTrace()->addFullCb(&GmVcdTrace::full_cb, 0, result->gm_trace);
+  result->m_trace->spTrace()->addChgCb (&GmVcdTrace::chg_cb,  0, result->gm_trace);
+  result->m_trace->open("waveform.vcd");
 
-  result.dpi_c_memory = dut_ram_ptr();
-  result.dpi_c_vga = dut_vga_ptr();
+  result->dpi_c_memory = dut_ram_ptr();
+  result->dpi_c_vga = dut_vga_ptr();
   return result;
 }
 
-void delete_tester(Tester_gm_dut tester) {
-  tester.m_trace->close();
-  delete tester.gm_trace;
-  delete tester.m_trace;
-  delete tester.dut;
-  delete tester.gm;
+void delete_tester(Tester_gm_dut* tester) {
+  tester->m_trace->close();
+  delete tester->gm_trace;
+  delete tester->m_trace;
+  delete tester->dut;
+  delete tester->gm;
+  delete tester;
 }
 
 bool is_valid_pc_address(uint32_t pc, uint32_t n_insts) {
@@ -377,19 +383,19 @@ bool is_valid_pc_address(uint32_t pc, uint32_t n_insts) {
   return min_address <= pc && pc <= max_address;
 }
 
-bool test_instructions(Tester_gm_dut tester, inst_size_t* insts, uint32_t n_insts, uint64_t max_sim_time) {
+bool test_instructions(Tester_gm_dut* tester) {
   bool is_test_success = true;
 
-  VminiRV* dut = tester.dut;
-  miniRV* gm  = tester.gm;
-  uint8_t* dpi_c_memory  = tester.dpi_c_memory;
-  uint8_t* dpi_c_vga  = tester.dpi_c_vga;
+  VminiRV* dut = tester->dut;
+  miniRV* gm  = tester->gm;
+  uint8_t* dpi_c_memory  = tester->dpi_c_memory;
+  uint8_t* dpi_c_vga  = tester->dpi_c_vga;
 
   dut->clk = 0;
   dut->rom_wen = 1;
-  for (uint32_t i = 0; i < n_insts; i++) {
+  for (uint32_t i = 0; i < tester->n_insts; i++) {
     uint32_t address = 4*i + MEM_START;
-    dut->rom_wdata = insts[i].v;
+    dut->rom_wdata = tester->insts[i].v;
     dut->rom_addr = address;
     dut->clk = 0;
     dut->eval();
@@ -397,15 +403,17 @@ bool test_instructions(Tester_gm_dut tester, inst_size_t* insts, uint32_t n_inst
     dut->eval();
 
     clock_tick(gm);
-    gm_mem_write(gm, {1}, {1, 1, 1, 1}, {address}, insts[i]);
+    gm_mem_write(gm, {1}, {1, 1, 1, 1}, {address}, tester->insts[i]);
     clock_tick(gm);
-    // print_instruction(insts[i]);
+    // print_instruction(tester->insts[i]);
   }
   dut->rom_wen = 0;
   reset_dut_regs(dut);
   reset_gm_regs(gm);
   dut->clk = 0;
-  for (uint64_t t = 0; t < max_sim_time && is_valid_pc_address(gm->pc.v, n_insts) && is_valid_pc_address(dut->pc, n_insts); t++) {
+  for (uint64_t t = 0;
+       t < tester->max_sim_time && is_valid_pc_address(gm->pc.v, tester->n_insts) && is_valid_pc_address(dut->pc, tester->n_insts);
+       t++) {
     dut->eval();
     inst_size_t inst = gm_mem_read(gm, gm->pc);
     CPU_out out = cpu_eval(gm);
@@ -415,12 +423,12 @@ bool test_instructions(Tester_gm_dut tester, inst_size_t* insts, uint32_t n_inst
     }
     // tester.m_trace->dump(t);
 
-    is_test_success &= compare(dut, gm, dpi_c_memory, dpi_c_vga, t);
+    is_test_success &= compare(tester, t);
 
     if (!is_test_success) {
-      for (uint32_t i = 0; i < n_insts; i++) {
+      for (uint32_t i = 0; i < tester->n_insts; i++) {
         printf("pc=%x: ", 4*i);
-        print_instruction(insts[i]);
+        print_instruction(tester->insts[i]);
       }
 
       printf("[%u] pc=%x inst: ", t, gm->pc.v);
@@ -439,31 +447,30 @@ bool test_instructions(Tester_gm_dut tester, inst_size_t* insts, uint32_t n_inst
   return is_test_success;
 }
 
-void random_difftest() {
-  Tester_gm_dut tester = new_tester();
-  uint32_t n_insts = 500;
-  inst_size_t* insts = new inst_size_t[n_insts];
+bool random_difftest(Tester_gm_dut* tester) {
+  tester->n_insts = 500;
+  tester->insts = new inst_size_t[tester->n_insts];
   bool is_tests_success = true;
   uint64_t tests_passed = 0;
-  uint64_t max_sim_time = 2000;
+  tester->max_sim_time = 2000;
   uint64_t max_tests = 200;
-  // uint64_t seed = hash_uint64_t(std::time(0));
+  uint64_t seed = hash_uint64_t(std::time(0));
   // uint64_t seed = 3263282379841580567lu;
   // uint64_t seed = 10714955119269546755lu;
   // uint64_t seed = 12610096651643082169lu;
-  uint64_t seed = 1451270821828317064lu;
+  // uint64_t seed = 1451270821828317064lu;
   do {
     printf("======== SEED:%lu ===== %u/%u =========\n", seed, tests_passed, max_tests);
     std::random_device rd;
     std::mt19937 gen(rd());
     gen.seed(seed);
-    for (uint32_t i = 0; i < n_insts; i++) {
+    for (uint32_t i = 0; i < tester->n_insts; i++) {
       // inst_size_t inst = random_instruction_mem_load_or_store(&gen);
       inst_size_t inst = random_instruction(&gen);
-      insts[i] = inst;
+      tester->insts[i] = inst;
     }
 
-    is_tests_success &= test_instructions(tester, insts, n_insts, max_sim_time);
+    is_tests_success &= test_instructions(tester);
     if (is_tests_success) {
       tests_passed++;
     }
@@ -471,6 +478,7 @@ void random_difftest() {
   } while (is_tests_success && tests_passed < max_tests);
 
   std::cout << "Tests results:\n" << tests_passed << " / " << max_tests << " have passed\n";
+  return is_tests_success;
 }
 
 void draw_image_raylib(char* image, uint32_t width, uint32_t height) {
@@ -549,30 +557,89 @@ void vga_image_gm() {
   draw_image_raylib(image, width, height);
 }
 
-void dummy_test() {
-  Tester_gm_dut tester = new_tester();
-  std::vector<uint8_t> buffer = read_bin_file("dummy-minirv-npc.bin");
-  uint32_t n_insts = buffer.size();
-  inst_size_t* insts = new inst_size_t[n_insts];
-  for (uint32_t i = 0; i < n_insts; i+=4) {
-    uint32_t byte3 = buffer[i + 3] << 24;
-    uint32_t byte2 = buffer[i + 2] << 16;
-    uint32_t byte1 = buffer[i + 1] <<  8;
-    uint32_t byte0 = buffer[i + 0] <<  0;
-    insts[i/4] = { byte0 | byte1 | byte2 | byte3 };
-    // print_instruction(insts[i]);
+bool bin_test(Tester_gm_dut* tester, const std::string& path) {
+  std::vector<uint8_t> buffer = read_bin_file(path);
+  tester->max_sim_time = 1000;
+  tester->n_insts = buffer.size();
+  tester->insts = new inst_size_t[tester->n_insts];
+  for (uint32_t i = 0; i < tester->n_insts; i++) {
+    uint32_t byte3 = buffer[4*i + 3] << 24;
+    uint32_t byte2 = buffer[4*i + 2] << 16;
+    uint32_t byte1 = buffer[4*i + 1] <<  8;
+    uint32_t byte0 = buffer[4*i + 0] <<  0;
+    tester->insts[i] = { byte0 | byte1 | byte2 | byte3 };
+    // print_instruction(tester->insts[i]);
   }
-  test_instructions(tester, insts, n_insts, 1000);
-  printf("a0: %i \n", tester.dut->regs_out[REG_A0]);
-  delete_tester(tester);
+  return test_instructions(tester);
+}
+
+static void usage(const char* prog) {
+  fprintf(stderr,
+    "Usage:\n"
+    "  %s random\n"
+    "  %s bin <path>\n",
+    prog, prog
+  );
+}
+
+static int streq(const char* a, const char* b) {
+  return a && b && strcmp(a, b) == 0;
 }
 
 int main(int argc, char** argv, char** env) {
-  random_difftest();
-  // dummy_test();
-  // vga_image_test();
-  // vga_image_gm();
-  exit(EXIT_SUCCESS);
+  Tester_gm_dut* tester = new_tester();
+  if (!tester) {
+    fprintf(stderr, "Error: failed to create tester\n");
+    return EXIT_FAILURE;
+  }
+
+  int exit_code = EXIT_SUCCESS;
+
+  if (argc < 2) {
+    usage(argv[0]);
+    exit_code = EXIT_FAILURE;
+    goto cleanup;
+  }
+  else {
+    const char* mode = argv[1];
+
+    if (streq(mode, "random")) {
+      if (argc != 2) {
+        fprintf(stderr, "Error: 'random' takes no extra arguments\n");
+        usage(argv[0]);
+        exit_code = EXIT_FAILURE;
+        goto cleanup;
+      }
+      if (!random_difftest(tester)) exit_code = EXIT_FAILURE;
+
+    } else if (streq(mode, "bin")) {
+      if (argc < 3) {
+        fprintf(stderr, "Error: 'bin' requires a <path>\n");
+        usage(argv[0]);
+        exit_code = EXIT_FAILURE;
+        goto cleanup;
+      }
+      if (argc != 3) {
+        fprintf(stderr, "Error: too many arguments for 'bin'\n");
+        usage(argv[0]);
+        exit_code = EXIT_FAILURE;
+        goto cleanup;
+      }
+      const char* path = argv[2];
+      if (!bin_test(tester, path)) exit_code = EXIT_FAILURE;
+    } else if (streq(mode, "-h") || streq(mode, "--help") || streq(mode, "help")) {
+      usage(argv[0]);
+
+    } else {
+      fprintf(stderr, "Error: unknown mode '%s'\n", mode);
+      usage(argv[0]);
+      exit_code = EXIT_FAILURE;
+    }
+  }
+
+cleanup:
+  delete_tester(tester);
+  return exit_code;
 }
 
 

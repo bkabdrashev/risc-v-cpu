@@ -158,13 +158,13 @@ void gm_mem_reset(miniRV* cpu) {
 
 inst_size_t gm_mem_read(miniRV* cpu, addr_size_t addr) {
   inst_size_t result = {0};
-  if (addr.v >= VGA_START && addr.v < VGA_END) {
+  if (addr.v >= VGA_START && addr.v+3 < VGA_END) {
     addr.v -= VGA_START;
     result.v = 
       cpu->vga[addr.v+3].v << 24 | cpu->vga[addr.v+2].v << 16 |
       cpu->vga[addr.v+1].v <<  8 | cpu->vga[addr.v+0].v <<  0 ;
   }
-  else if (addr.v >= MEM_START && addr.v < MEM_END) {
+  else if (addr.v >= MEM_START && addr.v+3 < MEM_END) {
     addr.v -= MEM_START;
     result.v = 
       cpu->mem[addr.v+3].v << 24 | cpu->mem[addr.v+2].v << 16 |
@@ -283,20 +283,20 @@ Dec_out dec_eval(inst_size_t inst) {
   bit sign = {.v=take_bit(inst.v, 31)};
   if (out.opcode.v == OPCODE_ADDI) {
     // ADDI
-    if (sign.v) out.imm.v = (-1 << 12) | take_bits_range(inst.v, 20, 31);
-    else        out.imm.v = ( 0 << 12) | take_bits_range(inst.v, 20, 31);
+    if (sign.v) out.imm.v = (~0u << 12) | take_bits_range(inst.v, 20, 31);
+    else        out.imm.v = ( 0u << 12) | take_bits_range(inst.v, 20, 31);
     out.write_enable.v = 1;
   }
   else if (out.opcode.v == OPCODE_JALR) {
     // JALR
-    if (sign.v) out.imm.v = (-1 << 12) | take_bits_range(inst.v, 20, 31);
-    else        out.imm.v = ( 0 << 12) | take_bits_range(inst.v, 20, 31);
+    if (sign.v) out.imm.v = (~0u << 12) | take_bits_range(inst.v, 20, 31);
+    else        out.imm.v = ( 0u << 12) | take_bits_range(inst.v, 20, 31);
     out.write_enable.v = 1;
   }
   else if (out.opcode.v == OPCODE_ADD) {
     // ADD
-    if (sign.v) out.imm.v = (-1 << 20) | take_bits_range(inst.v, 12, 31);
-    else        out.imm.v = ( 0 << 20) | take_bits_range(inst.v, 12, 31);
+    if (sign.v) out.imm.v = (~0u << 20) | take_bits_range(inst.v, 12, 31);
+    else        out.imm.v = ( 0u << 20) | take_bits_range(inst.v, 12, 31);
     out.write_enable.v = 1;
   }
   else if (out.opcode.v == OPCODE_LUI) {
@@ -306,8 +306,8 @@ Dec_out dec_eval(inst_size_t inst) {
   }
   else if (out.opcode.v == OPCODE_LW) {
     // LW, LBU
-    if (sign.v) out.imm.v = (-1 << 12) | take_bits_range(inst.v, 20, 31);
-    else        out.imm.v = ( 0 << 12) | take_bits_range(inst.v, 20, 31);
+    if (sign.v) out.imm.v = (~0u << 12) | take_bits_range(inst.v, 20, 31);
+    else        out.imm.v = ( 0u << 12) | take_bits_range(inst.v, 20, 31);
     out.write_enable.v = 1;
   }
   else if (out.opcode.v == OPCODE_SW) {
@@ -315,8 +315,8 @@ Dec_out dec_eval(inst_size_t inst) {
     uint32_t top_imm = take_bits_range(inst.v, 25, 31);
     uint32_t bot_imm = take_bits_range(inst.v, 7, 11);
     top_imm <<= 5;
-    if (sign.v) out.imm.v = (-1 << 12) | top_imm | bot_imm;
-    else        out.imm.v = ( 0 << 12) | top_imm | bot_imm;
+    if (sign.v) out.imm.v = (~0u << 12) | top_imm | bot_imm;
+    else        out.imm.v = ( 0u << 12) | top_imm | bot_imm;
     out.write_enable.v = 0;
   }
   else if (out.opcode.v == OPCODE_EBREAK) {
