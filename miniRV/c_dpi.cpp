@@ -67,12 +67,8 @@ extern "C" void mem_write(uint32_t address, uint32_t write_data, uint8_t wstrb) 
   uint8_t byte2 = (write_data >> 16) & 0xff;
   uint8_t byte3 = (write_data >> 24) & 0xff;
   if (address >= VGA_START && address < VGA_END-3) {
-    // if (address >= VGA_START+VGA_SIZE-100) {
-    // }
     address -= VGA_START;
-    if (wstrb & (1<<0)) {
-      vga[address + 0] = byte0;
-    }
+    if (wstrb & (1<<0)) vga[address + 0] = byte0;
     if (wstrb & (1<<1)) vga[address + 1] = byte1;
     if (wstrb & (1<<2)) vga[address + 2] = byte2;
     if (wstrb & (1<<3)) vga[address + 3] = byte3;

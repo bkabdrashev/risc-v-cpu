@@ -119,6 +119,9 @@ void clock_tick(miniRV* cpu) {
 
 void reset_dut(VminiRV* dut) {
   dut->reset = 1;
+  dut->clock = 0;
+  dut->eval();
+  dut->clock = 1;
   dut->eval();
   dut->reset = 0;
   dut->clock = 0;
@@ -210,7 +213,7 @@ bool compare_mem(uint64_t sim_time, uint32_t address, uint32_t dut_v, uint32_t g
 
 bool compare(Tester_gm_dut* tester, uint64_t sim_time) {
   bool result = true;
-  // result &= compare_reg(sim_time, "EBREAK", dut->ebreak, gm->ebreak.v);
+  result &= compare_reg(sim_time, "EBREAK", tester->dut->ebreak, tester->gm->ebreak.v);
   result &= compare_reg(sim_time, "PC", tester->dut->pc, tester->gm->pc.v);
   for (uint32_t i = 0; i < N_REGS; i++) {
     char digit0 = i%10 + '0';
@@ -218,8 +221,8 @@ bool compare(Tester_gm_dut* tester, uint64_t sim_time) {
     char name[] = {'R', digit1, digit0, '\0'};
     result &= compare_reg(sim_time, name, tester->dut->regs[i], tester->gm->regs[i].v);
   }
-  // result &= memcmp(tester->gm->vga, tester->dpi_c_vga, VGA_SIZE) == 0;
-  // result &= memcmp(tester->gm->mem, tester->dpi_c_memory, MEM_SIZE) == 0;
+  result &= memcmp(tester->gm->vga, tester->dpi_c_vga, VGA_SIZE) == 0;
+  result &= memcmp(tester->gm->mem, tester->dpi_c_memory, MEM_SIZE) == 0;
   if (!result) {
     for (uint32_t i = 0; i < MEM_SIZE; i++) {
       uint32_t dut_v = dut_ram_read(i);
@@ -408,8 +411,10 @@ bool test_instructions(Tester_gm_dut* tester) {
 
   VminiRV* dut = tester->dut;
   miniRV* gm  = tester->gm;
-  uint8_t* dpi_c_memory  = tester->dpi_c_memory;
-  uint8_t* dpi_c_vga  = tester->dpi_c_vga;
+
+  reset_dut(dut);
+  reset_gm_regs(gm);
+  gm_mem_reset(gm);
 
   dut->clock = 0;
   dut->top_mem_wen = 1;
@@ -495,17 +500,17 @@ void print_all_instructions(Tester_gm_dut* tester) {
 }
 
 bool random_difftest(Tester_gm_dut* tester) {
-  tester->n_insts = 500;
+  tester->n_insts = 200;
   tester->insts = new inst_size_t[tester->n_insts];
   bool is_tests_success = true;
   uint64_t tests_passed = 0;
   tester->max_sim_time = 2000;
-  uint64_t max_tests = 2000;
-  uint64_t seed = hash_uint64_t(std::time(0));
+  uint64_t max_tests = 100000;
+  // uint64_t seed = hash_uint64_t(std::time(0));
   // uint64_t seed = 3263282379841580567lu;
   // uint64_t seed = 10714955119269546755lu;
   // uint64_t seed = 12610096651643082169lu;
-  // uint64_t seed = 3140147796470050829lu;
+  uint64_t seed = 7519837503192539927lu;
   uint64_t i_test = 0;
   do {
     printf("======== SEED:%lu ===== %u/%u =========\n", seed, i_test, max_tests);

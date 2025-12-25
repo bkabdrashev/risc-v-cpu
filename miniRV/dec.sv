@@ -43,26 +43,43 @@ module dec (
     i_imm = { {20{sign}}, inst[31:20] };
     u_imm = { inst[31:12], 12'd0 };
     s_imm = { {20{sign}}, inst[31:25], inst[11:7] };
-
-    inst_type = 0;
-
+    mem_wbmask = 4'b0000;
+    alu_op = 0;
     case (opcode)
       OPCODE_CALC_IMM: begin
+        imm = i_imm;
         inst_type = INST_IMM;
+        alu_op = {sub & funct3==FUNCT3_SR,funct3};
       end
       OPCODE_CALC_REG: begin
         inst_type = INST_REG;
+        alu_op = {sub,funct3};
       end
       OPCODE_LOAD: begin
         imm = i_imm;
+        case (funct3)
+          FUNCT3_BYTE:        inst_type = {1'b0,funct3[1:0]};
+          FUNCT3_HALF:        inst_type = {1'b0,funct3[1:0]};
+          FUNCT3_WORD:        inst_type = {1'b0,funct3[1:0]};
+          FUNCT3_BYTE_UNSIGN: inst_type = {1'b0,funct3[1:0]};
+          FUNCT3_HALF_UNSIGN: inst_type = {1'b0,funct3[1:0]};
+          default:            inst_type = 0;        
+        endcase
       end
       OPCODE_STORE: begin
         imm = s_imm;
+        case (funct3)
+          FUNCT3_BYTE:        mem_wbmask = 4'b0001;
+          FUNCT3_HALF:        mem_wbmask = 4'b0011;
+          FUNCT3_WORD:        mem_wbmask = 4'b1111;
+          default:            mem_wbmask = 4'b0000;
+        endcase
+
         inst_type = INST_STORE;
       end
       OPCODE_LUI: begin
         imm = u_imm;
-        inst_type = INST_IMM;
+        inst_type = INST_UPP;
       end
       OPCODE_JALR: begin
         imm = i_imm;
@@ -70,21 +87,12 @@ module dec (
       end
       OPCODE_ENV: begin
         ebreak = inst[20] && clock;
+        inst_type = 0;
       end
-      default: ;
+      default: inst_type = 0;
     endcase
 
-    case (funct3)
-      FUNCT3_BYTE:        begin mem_wbmask = 4'b0001; inst_type = {1'b0,funct3[1:0]}; end
-      FUNCT3_HALF:        begin mem_wbmask = 4'b0011; inst_type = {1'b0,funct3[1:0]}; end
-      FUNCT3_WORD:        begin mem_wbmask = 4'b1111; inst_type = {1'b0,funct3[1:0]}; end
-      FUNCT3_BYTE_UNSIGN: begin mem_wbmask = 4'b0001; inst_type = {1'b0,funct3[1:0]}; end
-      FUNCT3_HALF_UNSIGN: begin mem_wbmask = 4'b0011; inst_type = {1'b0,funct3[1:0]}; end
-      default:            begin mem_wbmask = 4'b0000; inst_type = 0;                  end
-    endcase
-
-    is_mem_sign = funct3[2];
-    alu_op = {sub,funct3};
+    is_mem_sign = !funct3[2];
   end
 
 endmodule;

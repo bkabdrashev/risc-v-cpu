@@ -1,12 +1,13 @@
 module miniRV (
+  input logic clock,
   input logic reset,
-  input logic top_mem_wen,
+  input logic                  top_mem_wen,
   input logic [REG_END_WORD:0] top_mem_wdata,
   input logic [REG_END_WORD:0] top_mem_addr,
-  input logic clock,
 
   output logic [N_REGS-1:0][REG_END_WORD:0] regs,
-  output logic [REG_END_WORD:0] pc,
+  output logic [REG_END_WORD:0]             pc,
+
   output logic ebreak
 );
 /* verilator lint_off UNUSEDPARAM */
@@ -53,7 +54,7 @@ module miniRV (
   ram u_ram(
     .clock(clock),
     .reset(reset),
-    .wen(inst_type == INST_STORE),
+    .wen(inst_type == INST_STORE || top_mem_wen),
     .wdata(mem_wdata),
     .wbmask(mem_wbmask | {4{top_mem_wen}}),
     .addr(mem_addr),
@@ -86,7 +87,7 @@ module miniRV (
     .clock(clock),
     .reset(reset),
 
-    .wen(inst_type != INST_STORE),
+    .wen(inst_type != INST_STORE && !top_mem_wen),
     .wdata(reg_wdata),
 
     .rd(rd),
@@ -100,8 +101,16 @@ module miniRV (
   always_comb begin
     pc_inc = pc + 4;
 
-    /**/ if (inst_type == INST_IMM)  alu_rhs = imm;
-    else /*inst type is arithmetic*/ alu_rhs = reg_rdata2;
+    case (inst_type)
+      INST_REG:       alu_rhs = reg_rdata2;        
+      INST_LOAD_BYTE: alu_rhs = imm;
+      INST_LOAD_HALF: alu_rhs = imm;
+      INST_LOAD_WORD: alu_rhs = imm;
+      INST_STORE:     alu_rhs = imm;
+      INST_JUMP:      alu_rhs = imm;         
+      INST_IMM:       alu_rhs = imm;        
+      INST_UPP:       alu_rhs = 0;        
+    endcase
 
     if (top_mem_wen) begin
       mem_addr  = top_mem_addr;
@@ -120,15 +129,16 @@ module miniRV (
       INST_LOAD_BYTE: reg_wdata = {mem_byte_extend, mem_rdata[REG_END_BYTE:0]};
       INST_LOAD_HALF: reg_wdata = {mem_half_extend, mem_rdata[REG_END_HALF:0]};
       INST_LOAD_WORD: reg_wdata = mem_rdata;
-      INST_IMM:       reg_wdata = imm;            
+      INST_UPP:       reg_wdata = imm;
       INST_JUMP:      reg_wdata = pc_inc;         
       INST_REG:       reg_wdata = alu_res;        
+      INST_IMM:       reg_wdata = alu_res;        
       default:        reg_wdata = 0;
     endcase
 
-    /**/ if (inst_type == INST_JUMP) pc_next = alu_res & ~3;
-    else if (top_mem_wen) pc_next = pc_inc;
-    else pc_next = pc;
+    if (top_mem_wen) pc_next = pc;
+    else if (inst_type == INST_JUMP) pc_next = alu_res & ~3;
+    else pc_next = pc_inc;
   end
 
 endmodule;

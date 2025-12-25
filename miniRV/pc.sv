@@ -1,4 +1,4 @@
-module pc #(parameter int unsigned INITIAL_PC = 32'h8000_0000) (
+module pc (
   input logic clock,
   input logic reset,
   input logic [REG_END_WORD:0] in_addr,

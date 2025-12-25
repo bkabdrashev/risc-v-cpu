@@ -1,3 +1,4 @@
+localparam INITIAL_PC = 32'h8000_0000;
 localparam N_REGS    = 16;
 localparam REG_END_WORD = 31;
 localparam REG_END_HALF = 15;
@@ -15,6 +16,7 @@ localparam OP_SRL  = 4'b0101;
 localparam OP_SRA  = 4'b1101; 
 localparam OP_OR   = 4'b0110; 
 localparam OP_AND  = 4'b0111; 
+localparam FUNCT3_SR      = 3'b101;
 
 localparam INST_LOAD_BYTE = 3'b000;
 localparam INST_LOAD_HALF = 3'b001;
@@ -22,7 +24,9 @@ localparam INST_LOAD_WORD = 3'b010;
 localparam INST_STORE     = 3'b011;
 localparam INST_IMM       = 3'b100;
 localparam INST_REG       = 3'b101;
-localparam INST_JUMP      = 3'b110;
+localparam INST_UPP       = 3'b110;
+localparam INST_JUMP      = 3'b111;
+
 
 localparam FUNCT3_BYTE        = 3'b000;
 localparam FUNCT3_HALF        = 3'b001;
