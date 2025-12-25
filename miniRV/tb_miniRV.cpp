@@ -500,17 +500,17 @@ void print_all_instructions(Tester_gm_dut* tester) {
 }
 
 bool random_difftest(Tester_gm_dut* tester) {
-  tester->n_insts = 200;
+  tester->n_insts = 2000;
   tester->insts = new inst_size_t[tester->n_insts];
   bool is_tests_success = true;
   uint64_t tests_passed = 0;
-  tester->max_sim_time = 2000;
-  uint64_t max_tests = 100000;
-  // uint64_t seed = hash_uint64_t(std::time(0));
+  tester->max_sim_time = 5000;
+  uint64_t max_tests = 10'000;
+  uint64_t seed = hash_uint64_t(std::time(0));
   // uint64_t seed = 3263282379841580567lu;
   // uint64_t seed = 10714955119269546755lu;
   // uint64_t seed = 12610096651643082169lu;
-  uint64_t seed = 7519837503192539927lu;
+  // uint64_t seed = 7519837503192539927lu;
   uint64_t i_test = 0;
   do {
     printf("======== SEED:%lu ===== %u/%u =========\n", seed, i_test, max_tests);

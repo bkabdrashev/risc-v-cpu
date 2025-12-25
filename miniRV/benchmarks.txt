@@ -7,7 +7,6 @@ Dhrystone PASS         2 Marks
 dut ebreak
 finished:147342957
 
-SLLI, SRLI, SRAI:
 
 Trying 15000 runs through Dhrystone.
 Finished in 12018 ms
@@ -17,3 +16,29 @@ Dhrystone PASS         2 Marks
 dut ebreak
 finished:141675951
 
+
+Trying 15000 runs through Dhrystone.
+Finished in 9958 ms
+==================================================
+Dhrystone PASS         2 Marks
+                   vs. 100000 Marks (i7-7700K @ 4.20GHz)
+dut ebreak
+finished:122974093
+
+
+Trying 15000 runs through Dhrystone.
+Finished in 9945 ms
+==================================================
+Dhrystone PASS         2 Marks
+                   vs. 100000 Marks (i7-7700K @ 4.20GHz)
+dut ebreak
+finished:122733769
+
+
+Trying 15000 runs through Dhrystone.
+Finished in 10116 ms
+==================================================
+Dhrystone PASS         2 Marks
+                   vs. 100000 Marks (i7-7700K @ 4.20GHz)
+dut ebreak
+finished:119257543
