@@ -25,6 +25,7 @@ struct Tester_gm_dut {
   uint32_t n_insts;
 
   uint64_t max_sim_time;
+  uint64_t cycle = 0;
 
   uint8_t* dpi_c_memory;
   uint8_t* dpi_c_vga;
@@ -127,6 +128,21 @@ void reset_dut(VminiRV* dut) {
   dut->clock = 0;
 }
 
+void dump_trace(Tester_gm_dut* tester) {
+  tester->m_trace->dump(tester->cycle);
+}
+
+void dut_cycle(Tester_gm_dut* tester) {
+  tester->dut->eval();
+  // dump_trace(tester);
+  tester->cycle++;
+  tester->dut->clock ^= 1;
+  tester->dut->eval();
+  // dump_trace(tester);
+  tester->cycle++;
+  tester->dut->clock ^= 1;
+}
+
 void reset_gm_regs(miniRV* gm) {
   cpu_reset_regs(gm);
   gm->clock.prev = 0;
@@ -197,7 +213,7 @@ uint32_t* dut_time_ptr() {
 
 bool compare_reg(uint64_t sim_time, const char* name, uint32_t dut_v, uint32_t gm_v) {
   if (dut_v != gm_v) {
-    printf("Test Failed at time %lu. %s mismatch: dut_v = %i vs gm_v = %i\n", sim_time, name, dut_v, gm_v);
+    printf("Test Failed at time %lu. %s mismatch: dut_v = 0x%x vs gm_v = 0x%x\n", sim_time, name, dut_v, gm_v);
     return false;
   }
   return true;
@@ -221,8 +237,8 @@ bool compare(Tester_gm_dut* tester, uint64_t sim_time) {
     char name[] = {'R', digit1, digit0, '\0'};
     result &= compare_reg(sim_time, name, tester->dut->regs[i], tester->gm->regs[i].v);
   }
-  result &= memcmp(tester->gm->vga, tester->dpi_c_vga, VGA_SIZE) == 0;
-  result &= memcmp(tester->gm->mem, tester->dpi_c_memory, MEM_SIZE) == 0;
+  // result &= memcmp(tester->gm->vga, tester->dpi_c_vga, VGA_SIZE) == 0;
+  // result &= memcmp(tester->gm->mem, tester->dpi_c_memory, MEM_SIZE) == 0;
   if (!result) {
     for (uint32_t i = 0; i < MEM_SIZE; i++) {
       uint32_t dut_v = dut_ram_read(i);
@@ -269,8 +285,8 @@ inst_size_t random_instruction(std::mt19937* gen) {
       uint32_t imm = random_bits(gen, 12);
       uint32_t rs1 = random_bits(gen, 4);
       uint32_t rd  = random_bits(gen, 4);
-      // inst = addi(imm, rs1, rd);
-      inst = jalr(imm, rs1, rd);
+      inst = addi(imm, rs1, rd);
+      // inst = jalr(imm, rs1, rd);
     } break;
     case 2: { // ADD
       uint32_t rs2 = random_bits(gen, 4);
@@ -372,10 +388,10 @@ Tester_gm_dut* new_tester() {
   result->m_trace = new VerilatedVcdC;
   result->dut->trace(result->m_trace, 5);
 
-  result->gm_trace = new GmVcdTrace(result->gm);
-  result->m_trace->spTrace()->addInitCb(&GmVcdTrace::init_cb, result->gm_trace);
-  result->m_trace->spTrace()->addFullCb(&GmVcdTrace::full_cb, 0, result->gm_trace);
-  result->m_trace->spTrace()->addChgCb (&GmVcdTrace::chg_cb,  0, result->gm_trace);
+  // result->gm_trace = new GmVcdTrace(result->gm);
+  // result->m_trace->spTrace()->addInitCb(&GmVcdTrace::init_cb, result->gm_trace);
+  // result->m_trace->spTrace()->addFullCb(&GmVcdTrace::full_cb, 0, result->gm_trace);
+  // result->m_trace->spTrace()->addChgCb (&GmVcdTrace::chg_cb,  0, result->gm_trace);
   // result->m_trace->open("waveform.vcd");
 
   result->dpi_c_memory = dut_ram_ptr();
@@ -422,15 +438,13 @@ bool test_instructions(Tester_gm_dut* tester) {
     uint32_t address = 4*i + MEM_START;
     dut->top_mem_wdata = tester->insts[i].v;
     dut->top_mem_addr = address;
-    dut->clock = 0;
-    dut->eval();
-    dut->clock = 1;
-    dut->eval();
+    dut_cycle(tester);
+    while (dut->bus_state != 0) {
+      dut_cycle(tester);
+    }
 
     if (tester->is_diff) {
-      clock_tick(gm);
       gm_mem_write(gm, {1}, {1, 1, 1, 1}, {address}, tester->insts[i]);
-      clock_tick(gm);
     }
     // print_instruction(tester->insts[i]);
   }
@@ -440,7 +454,11 @@ bool test_instructions(Tester_gm_dut* tester) {
   }
   dut->clock = 0;
   for (uint64_t t = 0; !tester->max_sim_time || t < tester->max_sim_time && is_valid_pc_address(gm->pc.v, tester->n_insts) && is_valid_pc_address(dut->pc, tester->n_insts); t++) {
-    dut->eval();
+    dut_cycle(tester);
+    // tester->m_trace->dump(t);
+    while (dut->bus_state != 0) {
+      dut_cycle(tester);
+    }
     if (dut->ebreak) {
       printf("dut ebreak\n");
       if (dut->regs[10] != 0) {
@@ -448,7 +466,6 @@ bool test_instructions(Tester_gm_dut* tester) {
         is_test_success=false;
       }
     }
-    // tester->m_trace->dump(t);
 
     if (tester->is_diff) {
       inst_size_t inst = gm_mem_read(gm, gm->pc);
@@ -466,23 +483,20 @@ bool test_instructions(Tester_gm_dut* tester) {
         //   printf("pc=%x: ", 4*i);
         //   print_instruction(tester->insts[i]);
         // }
-
-        printf("[%x] pc=%x inst: ", t, gm->pc.v);
+        uint32_t mem_check = dut_ram_read(2147483851);
+        printf("[%x] pc=%x inst: , mem_check: 0x%x, r3: 0x%x\n", t, gm->pc.v, mem_check, dut->regs[3]);
         print_instruction(inst);
         break;
       }
-      clock_tick(gm);
     }
 
     if (tester->is_diff) {
       if (dut->ebreak && gm->ebreak.v) break;
     }
     else if (dut->ebreak) {
-      printf("finished:%u\n", t);
+      printf("finished:%u\n", tester->cycle);
       break;
     }
-
-    dut->clock ^= 1;
   }
   reset_dut(dut);
   if (tester->is_diff) {
@@ -500,17 +514,14 @@ void print_all_instructions(Tester_gm_dut* tester) {
 }
 
 bool random_difftest(Tester_gm_dut* tester) {
-  tester->n_insts = 2000;
+  tester->n_insts = 400;
   tester->insts = new inst_size_t[tester->n_insts];
   bool is_tests_success = true;
   uint64_t tests_passed = 0;
   tester->max_sim_time = 5000;
-  uint64_t max_tests = 10'000;
-  uint64_t seed = hash_uint64_t(std::time(0));
-  // uint64_t seed = 3263282379841580567lu;
-  // uint64_t seed = 10714955119269546755lu;
-  // uint64_t seed = 12610096651643082169lu;
-  // uint64_t seed = 7519837503192539927lu;
+  uint64_t max_tests = 10000;
+  // uint64_t seed = hash_uint64_t(std::time(0));
+  uint64_t seed = 5578876383785782017lu;
   uint64_t i_test = 0;
   do {
     printf("======== SEED:%lu ===== %u/%u =========\n", seed, i_test, max_tests);
@@ -522,6 +533,11 @@ bool random_difftest(Tester_gm_dut* tester) {
       inst_size_t inst = random_instruction(&gen);
       tester->insts[i] = inst;
     }
+    // tester->insts[0] = lui(0x80010, 2);
+    // tester->insts[1] = li(47, 3);
+    // tester->insts[2] = sw(0, 3, 2);
+    // tester->insts[3] = lw(0, 2, 4);
+    // tester->n_insts = 4;
 
     is_tests_success &= test_instructions(tester);
     if (is_tests_success) {

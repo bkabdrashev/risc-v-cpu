@@ -20,45 +20,49 @@ uint64_t get_time_us() {
   return res;
 }
 
-extern "C" void mem_read(uint32_t address, uint32_t* result) {
+extern "C" uint32_t mem_read(uint32_t address) {
+  uint32_t result = 0;
   if (address >= VGA_START && address < VGA_END-3) {
     address -= VGA_START;
-    *result = 
+    result = 
         vga[address + 3] << 24 | vga[address + 2] << 16 |
         vga[address + 1] <<  8 | vga[address + 0] <<  0 ;
-    // printf("try read vga: %p, %u\n", address, *result);
+    // printf("try read vga: %p, %u\n", address, result);
     // getchar();
   }
   else if (address >= MEM_START && address < MEM_END-3) {
     address -= MEM_START;
-    *result = 
+    result = 
       memory[address + 3] << 24 | memory[address + 2] << 16 |
       memory[address + 1] <<  8 | memory[address + 0] <<  0 ;
   }
   else if (address == UART_STATUS_ADDR) {
-    *result = status != 0;
+    result = status != 0;
     status++;
     status %= 7;
-    uart[4] = *result; // save uart status for gm 
-    // printf("try read uart: %p, %u\n", address, *result);
+    uart[4] = result; // save uart status for gm 
+    // printf("try read uart: %p, %u\n", address, result);
   }
   else if (address == TIME_UPTIME_ADDR) {
-    // printf("try read uart: %p, %u\n", address, *result);
+    // printf("try read uart: %p, %u\n", address, result);
     uint64_t time_us = get_time_us();
-    *result = (time_us & 0xffffffff);
-    time_uptime[0] = *result; // save time low for gm 
-    // printf("time low:%u\n", *result);
+    result = (time_us & 0xffffffff);
+    time_uptime[0] = result; // save time low for gm 
+    // printf("time low:%u\n", result);
   }
   else if (address == TIME_UPTIME_ADDR+4) {
     uint64_t time_us = get_time_us();
-    *result = (time_us >> 32);
-    time_uptime[1] = *result; // save time high for gm 
+    result = (time_us >> 32);
+    time_uptime[1] = result; // save time high for gm 
     // printf("time:%lu\n", time_us);
   }
   else {
     // printf("DUT WARNING: mem_read memory is not mapped: %x\n", address);
-    *result = 0;
+    result = 0;
   }
+  // printf("addr: 0x%x, res: %i\n", address, result);
+  // getchar();
+  return result;
 }
 
 extern "C" void mem_write(uint32_t address, uint32_t write_data, uint8_t wstrb) {
@@ -93,17 +97,17 @@ extern "C" void mem_reset() {
   memset(memory, 0, MEM_SIZE);
   memset(vga, 0, VGA_SIZE);
 }
-extern "C" void mem_ptr(uint64_t* out) {
-  *out = (uint64_t)memory;
+extern "C" uint64_t mem_ptr(uint64_t* out) {
+  return (uint64_t)memory;
 }
 
-extern "C" void vga_ptr(uint64_t* out) {
-  *out = (uint64_t)vga;
+extern "C" uint64_t vga_ptr(uint64_t* out) {
+  return (uint64_t)vga;
 }
 
-extern "C" void uart_ptr(uint64_t* out) {
-  *out = (uint64_t)uart;
+extern "C" uint64_t uart_ptr(uint64_t* out) {
+  return (uint64_t)uart;
 }
-extern "C" void time_ptr(uint64_t* out) {
-  *out = (uint64_t)time_uptime;
+extern "C" uint64_t time_ptr(uint64_t* out) {
+  return (uint64_t)time_uptime;
 }

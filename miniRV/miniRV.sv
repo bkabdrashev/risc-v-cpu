@@ -5,10 +5,11 @@ module miniRV (
   input logic [REG_END_WORD:0] top_mem_wdata,
   input logic [REG_END_WORD:0] top_mem_addr,
 
-  output logic [N_REGS-1:0][REG_END_WORD:0] regs,
-  output logic [REG_END_WORD:0]             pc,
+  output logic [REG_END_WORD:0] regs [0:N_REGS-1],
+  output logic [REG_END_WORD:0] pc,
 
-  output logic ebreak
+  output logic ebreak,
+  output logic [1:0] bus_state
 );
 /* verilator lint_off UNUSEDPARAM */
   `include "defs.vh"
@@ -44,6 +45,15 @@ module miniRV (
   logic [REG_END_WORD-REG_END_HALF-1:0] mem_half_extend;
 
   logic [2:0]  inst_type;
+  logic        is_load;
+  logic [N_REGS-1:0][REG_END_WORD:0] rf_regs_out;
+
+  sm bus_sm(
+    .clock(clock),
+    .reset(reset),
+    .is_load(is_load),
+    .in(bus_state),
+    .out(bus_state));
 
   pc u_pc(
     .clock(clock),
@@ -54,13 +64,13 @@ module miniRV (
   ram u_ram(
     .clock(clock),
     .reset(reset),
-    .wen(inst_type == INST_STORE || top_mem_wen),
+    .wen(bus_state != BUS_WAIT_LOAD && bus_state != BUS_WAIT_INST && inst_type == INST_STORE || top_mem_wen),
     .wdata(mem_wdata),
     .wbmask(mem_wbmask | {4{top_mem_wen}}),
     .addr(mem_addr),
     .rdata(mem_rdata));
 
-  mread u_mread(.addr(pc), .rdata(inst));
+  mread u_mread(.clock(clock), .addr(pc), .rdata(inst));
 
   dec u_dec(
     .inst(inst),
@@ -87,7 +97,7 @@ module miniRV (
     .clock(clock),
     .reset(reset),
 
-    .wen(inst_type != INST_STORE && !top_mem_wen),
+    .wen(inst_type != INST_STORE && !top_mem_wen && bus_state != BUS_WAIT_INST && bus_state != BUS_WAIT_LOAD),
     .wdata(reg_wdata),
 
     .rd(rd),
@@ -96,7 +106,7 @@ module miniRV (
 
     .rdata1(reg_rdata1),
     .rdata2(reg_rdata2),
-    .regs(regs));
+    .regs(rf_regs_out));
 
   always_comb begin
     pc_inc = pc + 4;
@@ -136,9 +146,20 @@ module miniRV (
       default:        reg_wdata = 0;
     endcase
 
-    if (top_mem_wen) pc_next = pc;
+    case (inst_type)
+      INST_LOAD_BYTE: is_load = 1;
+      INST_LOAD_HALF: is_load = 1;
+      INST_LOAD_WORD: is_load = 1;
+      default:        is_load = 0;
+    endcase
+
+    if (top_mem_wen || bus_state == BUS_WAIT_LOAD || bus_state == BUS_WAIT_INST) pc_next = pc;
     else if (inst_type == INST_JUMP) pc_next = alu_res & ~3;
     else pc_next = pc_inc;
+
+    for (int i = 0; i < N_REGS; i++) begin
+      regs[i] = rf_regs_out[i];
+    end
   end
 
 endmodule;

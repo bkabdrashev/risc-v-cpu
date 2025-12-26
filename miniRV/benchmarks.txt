@@ -6,6 +6,7 @@ Dhrystone PASS         2 Marks
                    vs. 100000 Marks (i7-7700K @ 4.20GHz)
 dut ebreak
 finished:147342957
+finished:119257543 ticks
 
 
 Trying 15000 runs through Dhrystone.
@@ -42,3 +43,22 @@ Dhrystone PASS         2 Marks
                    vs. 100000 Marks (i7-7700K @ 4.20GHz)
 dut ebreak
 finished:119257543
+
+
+Trying 15000 runs through Dhrystone.
+Finished in 9646 ms
+==================================================
+Dhrystone PASS         2 Marks
+                   vs. 100000 Marks (i7-7700K @ 4.20GHz)
+dut ebreak
+finished:119256805 ticks
+finished:238518347 ticks // ifu
+finished:329543570 ticks // slu
+
+Trying 15000 runs through Dhrystone.
+Finished in 23808 ms
+==================================================
+Dhrystone PASS         1 Marks
+                   vs. 100000 Marks (i7-7700K @ 4.20GHz)
+dut ebreak
+finished:329543570

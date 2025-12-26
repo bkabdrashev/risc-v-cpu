@@ -209,44 +209,42 @@ void gm_mem_write(miniRV* cpu, bit write_enable, bit4 write_enable_bytes, addr_s
     memset(cpu->mem, 0, MEM_SIZE);
     memset(cpu->vga, 0, VGA_SIZE);
   }
-  else if (is_positive_edge(cpu->clock)) {
-    if (write_enable.v) {
-      if (addr.v >= VGA_START && addr.v < VGA_END-3) {
-        addr.v -= VGA_START;
-        if (write_enable_bytes.bits[0].v) {
-          cpu->vga[addr.v + 0].v = (write_data.v & (0xff << 0)) >> 0;
-        }
-        if (write_enable_bytes.bits[1].v) {
-          cpu->vga[addr.v + 1].v = (write_data.v & (0xff << 8)) >> 8;
-        }
-        if (write_enable_bytes.bits[2].v) {
-          cpu->vga[addr.v + 2].v = (write_data.v & (0xff << 16)) >> 16;
-        }
-        if (write_enable_bytes.bits[3].v) {
-          cpu->vga[addr.v + 3].v = (write_data.v & (0xff << 24)) >> 24;
-        }
+  if (write_enable.v) {
+    if (addr.v >= VGA_START && addr.v < VGA_END-3) {
+      addr.v -= VGA_START;
+      if (write_enable_bytes.bits[0].v) {
+        cpu->vga[addr.v + 0].v = (write_data.v & (0xff << 0)) >> 0;
       }
-      else if (addr.v >= MEM_START && addr.v < MEM_END-3) {
-        addr.v -= MEM_START;
-        if (write_enable_bytes.bits[0].v) {
-          cpu->mem[addr.v + 0].v = (write_data.v >>  0) & 0xff;
-        }
-        if (write_enable_bytes.bits[1].v) {
-          cpu->mem[addr.v + 1].v = (write_data.v >>  8) & 0xff;
-        }
-        if (write_enable_bytes.bits[2].v) {
-          cpu->mem[addr.v + 2].v = (write_data.v >> 16) & 0xff;
-        }
-        if (write_enable_bytes.bits[3].v) {
-          cpu->mem[addr.v + 3].v = (write_data.v >> 24) & 0xff;
-        }
+      if (write_enable_bytes.bits[1].v) {
+        cpu->vga[addr.v + 1].v = (write_data.v & (0xff << 8)) >> 8;
       }
-      else if (addr.v == UART_DATA_ADDR) {
-        putc(write_data.v & 0xff, stderr);
+      if (write_enable_bytes.bits[2].v) {
+        cpu->vga[addr.v + 2].v = (write_data.v & (0xff << 16)) >> 16;
       }
-      else {
-        // printf("GM WARNING: mem write memory is not mapped\n");
+      if (write_enable_bytes.bits[3].v) {
+        cpu->vga[addr.v + 3].v = (write_data.v & (0xff << 24)) >> 24;
       }
+    }
+    else if (addr.v >= MEM_START && addr.v < MEM_END-3) {
+      addr.v -= MEM_START;
+      if (write_enable_bytes.bits[0].v) {
+        cpu->mem[addr.v + 0].v = (write_data.v >>  0) & 0xff;
+      }
+      if (write_enable_bytes.bits[1].v) {
+        cpu->mem[addr.v + 1].v = (write_data.v >>  8) & 0xff;
+      }
+      if (write_enable_bytes.bits[2].v) {
+        cpu->mem[addr.v + 2].v = (write_data.v >> 16) & 0xff;
+      }
+      if (write_enable_bytes.bits[3].v) {
+        cpu->mem[addr.v + 3].v = (write_data.v >> 24) & 0xff;
+      }
+    }
+    else if (addr.v == UART_DATA_ADDR) {
+      putc(write_data.v & 0xff, stderr);
+    }
+    else {
+      // printf("GM WARNING: mem write memory is not mapped\n");
     }
   }
 }
@@ -255,13 +253,11 @@ void pc_write(miniRV* cpu, addr_size_t in_addr, bit is_jump) {
   if (is_positive_edge(cpu->reset)) {
     cpu->pc.v = MEM_START;
   }
-  else if (is_positive_edge(cpu->clock)) {
-    if (is_jump.v) {
-      cpu->pc.v = in_addr.v;
-    }
-    else {
-      cpu->pc.v += 4;
-    }
+  if (is_jump.v) {
+    cpu->pc.v = in_addr.v;
+  }
+  else {
+    cpu->pc.v += 4;
   }
 }
 
@@ -287,10 +283,8 @@ void rf_write(miniRV* cpu, bit write_enable, reg_index_t reg_dest, reg_size_t wr
       cpu->regs[i].v = 0;
     }
   }
-  else if (is_positive_edge(cpu->clock)) {
-    if (write_enable.v && reg_dest.v != 0 && reg_dest.v < N_REGS) {
-      cpu->regs[reg_dest.v] = write_data;
-    }
+  if (write_enable.v && reg_dest.v != 0 && reg_dest.v < N_REGS) {
+    cpu->regs[reg_dest.v] = write_data;
   }
 }
 

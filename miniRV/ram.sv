@@ -14,37 +14,27 @@ module ram (
 
   export "DPI-C" function sv_mem_read;
   function int unsigned sv_mem_read(input int unsigned mem_addr);
-    int unsigned result;
-    mem_read(mem_addr, result);
-    return result;
+    return mem_read(mem_addr);
   endfunction
 
   export "DPI-C" function sv_mem_ptr;
   function longint unsigned sv_mem_ptr();
-    longint unsigned mem_ptr_out;
-    mem_ptr(mem_ptr_out);
-    return mem_ptr_out;
+    return mem_ptr();
   endfunction
 
   export "DPI-C" function sv_vga_ptr;
   function longint unsigned sv_vga_ptr();
-    longint unsigned vga_ptr_out;
-    vga_ptr(vga_ptr_out);
-    return vga_ptr_out;
+    return vga_ptr();
   endfunction
 
   export "DPI-C" function sv_uart_ptr;
   function longint unsigned sv_uart_ptr();
-    longint unsigned uart_ptr_out;
-    uart_ptr(uart_ptr_out);
-    return uart_ptr_out;
+    return uart_ptr();
   endfunction
 
   export "DPI-C" function sv_time_ptr;
   function longint unsigned sv_time_ptr();
-    longint unsigned time_ptr_out;
-    time_ptr(time_ptr_out);
-    return time_ptr_out;
+    return time_ptr();
   endfunction
 
   export "DPI-C" function sv_mem_write;
@@ -53,24 +43,28 @@ module ram (
   endfunction
 
   import "DPI-C" context task mem_write(input int unsigned address, input int unsigned write, input byte wbmask);
-  import "DPI-C" context task mem_read(input int unsigned address, output int unsigned read);
+  import "DPI-C" context function int unsigned mem_read(input int unsigned address);
   import "DPI-C" context task mem_reset();
-  import "DPI-C" context task mem_ptr(output longint unsigned mem_ptr_out);
-  import "DPI-C" context task vga_ptr(output longint unsigned vga_ptr_out);
-  import "DPI-C" context task uart_ptr(output longint unsigned uart_ptr_out);
-  import "DPI-C" context task time_ptr(output longint unsigned time_ptr_out);
+  import "DPI-C" context function longint unsigned mem_ptr();
+  import "DPI-C" context function longint unsigned vga_ptr();
+  import "DPI-C" context function longint unsigned uart_ptr();
+  import "DPI-C" context function longint unsigned time_ptr();
 
   always_ff @(posedge clock or posedge reset) begin
     if (reset) begin
       mem_reset();
     end else begin
+      rdata <= (!wen) ? mem_read(addr) : 32'b0;
+      // $display("rdata: %d, wen: %d", rdata, wen);
       if (wen) mem_write(addr, wdata, {4'b0, wbmask});
     end
   end
 
+  /*
   always_comb begin
-    mem_read(addr, rdata);
+    rdata = mem_read(addr);
   end
+  */
 
 endmodule
 

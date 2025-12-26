@@ -1,3 +1,7 @@
+localparam BUS_IDLE      = 2'h0;
+localparam BUS_WAIT_INST = 2'h1;
+localparam BUS_WAIT_LOAD = 2'h2;
+
 localparam INITIAL_PC = 32'h8000_0000;
 localparam N_REGS    = 16;
 localparam REG_END_WORD = 31;
