@@ -11,14 +11,15 @@ module mread (
   `include "defs.vh"
 /* verilator lint_on UNUSEDPARAM */
   import "DPI-C" context function int unsigned mem_read(input int unsigned address);
+  import "DPI-C" context function bit mem_request();
 
   logic                  busy;
-  logic [1:0]            counter; 
+  // logic [1:0]            counter; 
   logic [REG_END_WORD:0] addr_q;
 
   always_ff @(posedge clock or posedge reset) begin
     if (reset) begin
-      counter   <= '0;
+      // counter   <= '0;
       busy      <= 1'b0;
       respValid <= 1'b0;
       rdata     <= '0;
@@ -29,16 +30,17 @@ module mread (
       if (!busy) begin
         if (reqValid) begin
           busy    <= 1'b1;
-          counter <= 2'd0;
+          // counter <= 2'd0;
           addr_q  <= addr;
         end
       end else begin
-        if (counter == 2'd3) begin
+        if (mem_request()) begin
           rdata     <= mem_read(addr_q);
           respValid <= 1'b1;
           busy      <= 1'b0;
-        end else begin
-          counter <= counter + 2'd1;
+        end
+        else begin
+          // counter <= counter + 2'd1;
         end
       end
     end

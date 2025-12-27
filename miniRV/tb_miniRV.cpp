@@ -8,7 +8,6 @@
 #include <verilated_vcd_c.h>
 #include "VminiRV.h"
 #include "gm.cpp"
-// #include "c_dpi.cpp"
 
 #include <fstream>
 #include <vector>
@@ -22,6 +21,7 @@ struct Tester_gm_dut {
   bool is_random = false;
   bool is_bin    = false;
   char* bin_file = NULL;
+  uint64_t max_tests = 1;
 
   miniRV* gm;
   VminiRV* dut;
@@ -474,13 +474,12 @@ bool random_difftest(Tester_gm_dut* tester) {
   bool is_tests_success = true;
   uint64_t tests_passed = 0;
   tester->max_sim_time = 5000;
-  uint64_t max_tests = 100000;
   uint64_t seed = hash_uint64_t(std::time(0));
   // uint64_t seed = 10596642213997354837lu; // this seed seems to be good debugging entry
   // uint64_t seed = 12494773341427943734lu; // early jalr
   uint64_t i_test = 0;
   do {
-    printf("======== SEED:%lu ===== %u/%u =========\n", seed, i_test, max_tests);
+    printf("======== SEED:%lu ===== %u/%u =========\n", seed, i_test, tester->max_tests);
     std::random_device rd;
     std::mt19937 gen(rd());
     gen.seed(seed);
@@ -504,9 +503,9 @@ bool random_difftest(Tester_gm_dut* tester) {
     }
     seed = hash_uint64_t(seed);
     i_test++;
-  } while (is_tests_success && tests_passed < max_tests);
+  } while (is_tests_success && tests_passed < tester->max_tests);
 
-  std::cout << "Tests results:\n" << tests_passed << " / " << max_tests << " have passed\n";
+  std::cout << "Tests results:\n" << tests_passed << " / " << tester->max_tests << " have passed\n";
   return is_tests_success;
 }
 
@@ -604,8 +603,8 @@ bool bin_test(Tester_gm_dut* tester) {
 static void usage(const char* prog) {
   fprintf(stderr,
     "Usage:\n"
-    "  %s [diff] random\n"
-    "  %s [diff] bin <path>\n",
+    "  %s [diff] [trace] [cycles] random <number>\n"
+    "  %s [diff] [trace] [cycles] bin <path>\n",
     prog, prog
   );
 }
@@ -726,6 +725,14 @@ int main(int argc, char** argv, char** env) {
       }
       else if (streq(mode, "random")) {
         tester->is_random = true;
+        curr_arg++;
+        if (curr_arg >= argc) {
+          fprintf(stderr, "Error: 'random' requires a <number>\n");
+          usage(argv[0]);
+          exit_code = EXIT_FAILURE;
+          goto cleanup;
+        }
+        tester->max_tests = atoi(argv[curr_arg]);
       }
       else if (streq(mode, "bin")) {
         tester->is_bin = true;
@@ -736,7 +743,7 @@ int main(int argc, char** argv, char** env) {
           exit_code = EXIT_FAILURE;
           goto cleanup;
         }
-        tester->bin_file = argv[2 + tester->is_diff];
+        tester->bin_file = argv[curr_arg];
       }
       else {
         fprintf(stderr, "Error: unknown mode '%s'\n", mode);
