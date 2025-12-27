@@ -4,7 +4,6 @@ module mread (
   input logic                  reqValid,
   input logic [REG_END_WORD:0] addr,    
 
-  output logic                  busy,
   output logic                  respValid,
   output logic [REG_END_WORD:0] rdata
 );
@@ -13,7 +12,8 @@ module mread (
 /* verilator lint_on UNUSEDPARAM */
   import "DPI-C" context function int unsigned mem_read(input int unsigned address);
 
-  logic [1:0] counter; 
+  logic                  busy;
+  logic [1:0]            counter; 
   logic [REG_END_WORD:0] addr_q;
 
   always_ff @(posedge clock or posedge reset) begin

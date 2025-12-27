@@ -1,6 +1,12 @@
 localparam BUS_IDLE = 1'h0;
 localparam BUS_WAIT = 1'h1;
 
+localparam STATE_FETCH   = 3'h0;
+localparam STATE_LOAD    = 3'h1;
+localparam STATE_STORE   = 3'h2;
+localparam STATE_REG     = 3'h3;
+localparam STATE_FINISH  = 3'h4;
+
 localparam INITIAL_PC = 32'h8000_0000;
 localparam N_REGS    = 16;
 localparam REG_END_WORD = 31;

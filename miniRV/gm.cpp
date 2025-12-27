@@ -209,6 +209,7 @@ void gm_mem_write(miniRV* cpu, bit write_enable, bit4 write_enable_bytes, addr_s
     memset(cpu->mem, 0, MEM_SIZE);
     memset(cpu->vga, 0, VGA_SIZE);
   }
+  // printf("gm mem write: %u, %u %u %u %u, addr: 0x%x, wdata: 0x%x\n", write_enable.v, write_enable_bytes.bits[0].v, write_enable_bytes.bits[1].v, write_enable_bytes.bits[2].v, write_enable_bytes.bits[3].v, addr.v, write_data.v);
   if (write_enable.v) {
     if (addr.v >= VGA_START && addr.v < VGA_END-3) {
       addr.v -= VGA_START;

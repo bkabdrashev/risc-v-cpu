@@ -66,7 +66,8 @@ extern "C" uint32_t mem_read(uint32_t address) {
 }
 
 extern "C" void mem_write(uint32_t address, uint32_t write_data, uint8_t wstrb) {
-  // printf("write mem: %p, 0x%x, %u\n", address, write_data, wstrb);
+  // printf("dut write mem: %p, 0x%x, %u\n", address, write_data, wstrb);
+  // getchar();
   uint8_t byte0 = (write_data >>  0) & 0xff;
   uint8_t byte1 = (write_data >>  8) & 0xff;
   uint8_t byte2 = (write_data >> 16) & 0xff;

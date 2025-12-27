@@ -8,7 +8,6 @@ module ram (
   input  logic [3:0]            wbmask,
   input  logic [REG_END_WORD:0] addr,    
 
-  output logic                  busy,
   output logic                  respValid,
   output logic [REG_END_WORD:0] rdata
 );
@@ -54,6 +53,7 @@ module ram (
   import "DPI-C" context function longint unsigned uart_ptr();
   import "DPI-C" context function longint unsigned time_ptr();
 
+  logic                  busy;
   logic [1:0]            counter;
   logic [REG_END_WORD:0] addr_q;
   logic                  wen_q;

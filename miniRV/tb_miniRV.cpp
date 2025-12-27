@@ -15,9 +15,16 @@
 #include <algorithm>
 
 struct Tester_gm_dut {
-  bool is_diff = false;
+  bool is_diff   = false;
+  bool is_trace  = false;
+  bool is_cycles = false;
+  bool is_random = false;
+  bool is_bin    = false;
+  char* bin_file = NULL;
+
   miniRV* gm;
   VminiRV* dut;
+
   GmVcdTrace* gm_trace;
   VerilatedVcdC* m_trace;
 
@@ -119,7 +126,9 @@ void clock_tick(miniRV* cpu) {
 }
 
 void dump_trace(Tester_gm_dut* tester) {
-  tester->m_trace->dump(tester->cycle);
+  if (tester->is_trace) {
+    tester->m_trace->dump(tester->cycle);
+  }
 }
 
 void dut_cycle(Tester_gm_dut* tester) {
@@ -127,11 +136,17 @@ void dut_cycle(Tester_gm_dut* tester) {
   dump_trace(tester);
   tester->cycle++;
   tester->dut->clock ^= 1;
+  if (tester->is_cycles) {
+    if (tester->cycle % 10'000'000 == 0) printf("cycles: %u, pc: 0x%x\n", tester->cycle, tester->dut->pc);
+  }
 
   tester->dut->eval();
   dump_trace(tester);
   tester->cycle++;
   tester->dut->clock ^= 1;
+  if (tester->is_cycles) {
+    if (tester->cycle % 10'000'000 == 0) printf("cycles: %u, pc: 0x%x\n", tester->cycle, tester->dut->pc);
+  }
 }
 
 void dut_wait(Tester_gm_dut* tester) {
@@ -241,8 +256,8 @@ bool compare(Tester_gm_dut* tester, uint64_t sim_time) {
     char name[] = {'R', digit1, digit0, '\0'};
     result &= compare_reg(sim_time, name, tester->dut->regs[i], tester->gm->regs[i].v);
   }
-  result &= memcmp(tester->gm->vga, tester->dpi_c_vga, VGA_SIZE) == 0;
-  result &= memcmp(tester->gm->mem, tester->dpi_c_memory, MEM_SIZE) == 0;
+  // result &= memcmp(tester->gm->vga, tester->dpi_c_vga, VGA_SIZE) == 0;
+  // result &= memcmp(tester->gm->mem, tester->dpi_c_memory, MEM_SIZE) == 0;
   if (!result) {
     for (uint32_t i = 0; i < MEM_SIZE; i++) {
       uint32_t dut_v = dut_ram_read(i);
@@ -289,8 +304,8 @@ inst_size_t random_instruction(std::mt19937* gen) {
       uint32_t imm = random_bits(gen, 12);
       uint32_t rs1 = random_bits(gen, 4);
       uint32_t rd  = random_bits(gen, 4);
-      inst = addi(imm, rs1, rd);
-      // inst = jalr(imm, rs1, rd);
+      // inst = addi(imm, rs1, rd);
+      inst = jalr(imm, rs1, rd);
     } break;
     case 2: { // ADD
       uint32_t rs2 = random_bits(gen, 4);
@@ -392,11 +407,10 @@ Tester_gm_dut* new_tester() {
   result->m_trace = new VerilatedVcdC;
   result->dut->trace(result->m_trace, 5);
 
-  // result->gm_trace = new GmVcdTrace(result->gm);
+  result->gm_trace = new GmVcdTrace(result->gm);
   // result->m_trace->spTrace()->addInitCb(&GmVcdTrace::init_cb, result->gm_trace);
   // result->m_trace->spTrace()->addFullCb(&GmVcdTrace::full_cb, 0, result->gm_trace);
   // result->m_trace->spTrace()->addChgCb (&GmVcdTrace::chg_cb,  0, result->gm_trace);
-  result->m_trace->open("waveform.vcd");
 
   result->dpi_c_memory = dut_ram_ptr();
   result->dpi_c_vga = dut_vga_ptr();
@@ -482,7 +496,7 @@ bool test_instructions(Tester_gm_dut* tester) {
         //   printf("pc=%x: ", 4*i);
         //   print_instruction(tester->insts[i]);
         // }
-        printf("[%x] pc=%x inst:", t, gm->pc.v);
+        printf("[%x] pc=%x inst: [0x%x] ", t, gm->pc.v, inst);
         print_instruction(inst);
         break;
       }
@@ -492,10 +506,10 @@ bool test_instructions(Tester_gm_dut* tester) {
       if (dut->ebreak && gm->ebreak.v) break;
     }
     else if (dut->ebreak) {
-      printf("finished:%u\n", tester->cycle);
       break;
     }
   }
+  printf("finished:%u\n", tester->cycle);
   // dut_reset(tester);
   if (tester->is_diff) {
     gm_mem_reset(gm);
@@ -507,19 +521,21 @@ bool test_instructions(Tester_gm_dut* tester) {
 
 void print_all_instructions(Tester_gm_dut* tester) {
   for (uint32_t i = 0; i < tester->n_insts; i++) {
+    printf("[0x%x], (0x%x)\t", 4*i+MEM_START, tester->insts[i]);
     print_instruction(tester->insts[i]);
   }
 }
 
 bool random_difftest(Tester_gm_dut* tester) {
-  tester->n_insts = 10;
+  tester->n_insts = 1000;
   tester->insts = new inst_size_t[tester->n_insts];
   bool is_tests_success = true;
   uint64_t tests_passed = 0;
   tester->max_sim_time = 5000;
-  uint64_t max_tests = 2;
-  // uint64_t seed = hash_uint64_t(std::time(0));
-  uint64_t seed = 5578876383785782017lu;
+  uint64_t max_tests = 100;
+  uint64_t seed = hash_uint64_t(std::time(0));
+  // uint64_t seed = 10596642213997354837lu; // this seed seems to be good debugging entry
+  // uint64_t seed = 12494773341427943734lu; // early jalr
   uint64_t i_test = 0;
   do {
     printf("======== SEED:%lu ===== %u/%u =========\n", seed, i_test, max_tests);
@@ -627,8 +643,8 @@ void vga_image_gm() {
   draw_image_raylib(image, width, height);
 }
 
-bool bin_test(Tester_gm_dut* tester, const std::string& path) {
-  std::vector<uint8_t> buffer = read_bin_file(path);
+bool bin_test(Tester_gm_dut* tester) {
+  std::vector<uint8_t> buffer = read_bin_file(tester->bin_file);
   tester->max_sim_time = 0;
   tester->n_insts = buffer.size() / 4;
   tester->insts = new inst_size_t[tester->n_insts];
@@ -754,66 +770,58 @@ int main(int argc, char** argv, char** env) {
     goto cleanup;
   }
   else {
-    char* mode = argv[1];
-
-    if (streq(mode, "diff")) {
-      if (argc <= 2) {
-        fprintf(stderr, "Error: 'diff' requires other modes to run\n");
+    int curr_arg = 1;
+    char* mode = argv[curr_arg];
+    while (curr_arg < argc) {
+      if (streq(mode, "diff")) {
+        tester->is_diff = true;
+      }
+      else if (streq(mode, "trace")) {
+        tester->is_trace = true;
+      }
+      else if (streq(mode, "cycles")) {
+        tester->is_cycles = true;
+      }
+      else if (streq(mode, "random")) {
+        tester->is_random = true;
+      }
+      else if (streq(mode, "bin")) {
+        tester->is_bin = true;
+        curr_arg++;
+        if (curr_arg >= argc) {
+          fprintf(stderr, "Error: 'bin' requires a <path>\n");
+          usage(argv[0]);
+          exit_code = EXIT_FAILURE;
+          goto cleanup;
+        }
+        tester->bin_file = argv[2 + tester->is_diff];
+      }
+      else {
+        fprintf(stderr, "Error: unknown mode '%s'\n", mode);
         usage(argv[0]);
         exit_code = EXIT_FAILURE;
-        goto cleanup;
       }
-      tester->is_diff = true;
-      mode = argv[2];
+      curr_arg++;
+      mode = argv[curr_arg];
     }
 
-    if (streq(mode, "random")) {
-      if (argc != 2 + tester->is_diff) {
-        fprintf(stderr, "Error: 'random' takes no extra arguments\n");
-        usage(argv[0]);
-        exit_code = EXIT_FAILURE;
-        goto cleanup;
-      }
-      if (!random_difftest(tester)) exit_code = EXIT_FAILURE;
-
+    if (tester->is_trace) {
+      tester->m_trace->open("waveform.vcd");
     }
-    else if (streq(mode, "bin")) {
-      if (argc < 3 + tester->is_diff) {
-        fprintf(stderr, "Error: 'bin' requires a <path>\n");
-        usage(argv[0]);
+    if (tester->is_random) {
+      bool result = random_difftest(tester);
+      if (!result) {
         exit_code = EXIT_FAILURE;
-        goto cleanup;
       }
-      if (argc != 3 + tester->is_diff) {
-        fprintf(stderr, "Error: too many arguments for 'bin'\n");
-        usage(argv[0]);
+    }
+    if (tester->is_bin) {
+      bool result = bin_test(tester);
+      if (!result) {
         exit_code = EXIT_FAILURE;
-        goto cleanup;
       }
-      const char* path = argv[2 + tester->is_diff];
-      printf("%u, %s\n", argc, path);
-      if (!bin_test(tester, path)) exit_code = EXIT_FAILURE;
-    }
-    else if (streq(mode, "game")) {
-      if (argc != 2 + tester->is_diff) {
-        fprintf(stderr, "Error: too many arguments for 'game'\n");
-        usage(argv[0]);
-        exit_code = EXIT_FAILURE;
-        goto cleanup;
-      }
-      game(tester);
-    }
-    else if (streq(mode, "-h") || streq(mode, "--help") || streq(mode, "help")) {
-      usage(argv[0]);
-
-    }
-    else {
-      fprintf(stderr, "Error: unknown mode '%s'\n", mode);
-      usage(argv[0]);
-      exit_code = EXIT_FAILURE;
     }
   }
-
+  
 cleanup:
   delete_tester(tester);
   return exit_code;

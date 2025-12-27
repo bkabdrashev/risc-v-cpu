@@ -53,6 +53,7 @@ dut ebreak
 finished:119256805 ticks
 finished:238518347 ticks // ifu
 finished:329543570 ticks // slu
+finished:1069368356
 
 Trying 15000 runs through Dhrystone.
 Finished in 23808 ms
@@ -61,3 +62,11 @@ Dhrystone PASS         1 Marks
                    vs. 100000 Marks (i7-7700K @ 4.20GHz)
 dut ebreak
 finished:329543570
+
+Trying 15000 runs through Dhrystone.
+Finished in 73737 ms
+==================================================
+Dhrystone PASS         0 Marks
+                   vs. 100000 Marks (i7-7700K @ 4.20GHz)
+dut ebreak
+finished:1069368356

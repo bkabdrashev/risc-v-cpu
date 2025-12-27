@@ -51,8 +51,7 @@ module miniRV (
   logic lsu_reqValid;
   logic ifu_respValid;
   logic lsu_respValid;
-  logic lsu_busy;
-  logic ifu_busy;
+  logic [2:0] state;
 
   logic lsu_wen;
   logic reg_wen;
@@ -63,8 +62,6 @@ module miniRV (
     .in_addr(pc_next),
     .out_addr(pc));
 
-  assign lsu_wen = (!ifu_busy && !lsu_busy && inst_type == INST_STORE) || top_mem_wen;
-
   ram u_ram(
     .clock(clock),
     .reset(reset),
@@ -74,7 +71,6 @@ module miniRV (
     .wbmask(mem_wbmask | {4{top_mem_wen}}),
     .addr(mem_addr),
 
-    .busy(lsu_busy),
     .respValid(lsu_respValid),
     .rdata(mem_rdata));
 
@@ -84,7 +80,6 @@ module miniRV (
     .reqValid(ifu_reqValid),
     .addr(pc),
 
-    .busy(ifu_busy),
     .respValid(ifu_respValid),
     .rdata(inst));
 
@@ -109,7 +104,6 @@ module miniRV (
     .rhs(alu_rhs),
     .res(alu_res));
 
-  assign reg_wen = !top_mem_wen && !ifu_busy && !lsu_busy;
   rf u_rf(
     .clock(clock),
     .reset(reset),
@@ -124,6 +118,21 @@ module miniRV (
     .rdata1(reg_rdata1),
     .rdata2(reg_rdata2),
     .regs(rf_regs_out));
+
+  sm u_sm(
+    .clock(clock),
+    .reset(reset),
+    .top_mem_wen(top_mem_wen),
+
+    .in(state),
+    .ifu_respValid(ifu_respValid),
+    .lsu_respValid(lsu_respValid),
+    .inst_type(inst_type),
+
+    .ifu_reqValid(ifu_reqValid),
+    .lsu_reqValid(lsu_reqValid),
+    .finished(is_step_finished),
+    .out(state));
 
   always_comb begin
     pc_inc = pc + 4;
@@ -158,38 +167,24 @@ module miniRV (
       INST_LOAD_HALF: reg_wdata = {mem_half_extend, mem_rdata[REG_END_HALF:0]};
       INST_LOAD_WORD: reg_wdata = mem_rdata;
       INST_UPP:       reg_wdata = imm;
-      INST_JUMP:      reg_wdata = pc_inc;         
+      INST_JUMP:      reg_wdata = pc;         
       INST_REG:       reg_wdata = alu_res;        
       INST_IMM:       reg_wdata = alu_res;        
       default:        reg_wdata = 0;
     endcase
 
-    case (inst_type)
-      INST_LOAD_BYTE: lsu_reqValid = (!ifu_busy || top_mem_wen) && lsu_respValid && !reset;
-      INST_LOAD_HALF: lsu_reqValid = (!ifu_busy || top_mem_wen) && lsu_respValid && !reset;
-      INST_LOAD_WORD: lsu_reqValid = (!ifu_busy || top_mem_wen) && lsu_respValid && !reset;
-      INST_STORE:     lsu_reqValid = (!ifu_busy || top_mem_wen) && lsu_respValid && !reset;
-      default:        lsu_reqValid = top_mem_wen;
-    endcase
+    lsu_wen = inst_type == INST_STORE || top_mem_wen;
+    reg_wen = state == STATE_REG;
 
-    if (top_mem_wen || ifu_busy || lsu_busy || lsu_reqValid) pc_next = pc;
-    else if (inst_type == INST_JUMP) pc_next = alu_res & ~3;
+    if (state == STATE_REG && inst_type == INST_JUMP) pc_next = alu_res & ~3;
+    else if (!is_step_finished || top_mem_wen) pc_next = pc;
     else pc_next = pc_inc;
-
-    ifu_reqValid = (!lsu_reqValid || lsu_respValid) && !lsu_busy && !reset && !top_mem_wen; 
 
     for (int i = 0; i < N_REGS; i++) begin
       regs[i] = rf_regs_out[i];
     end
   end
 
-  always_comb begin
-    if (top_mem_wen) begin
-      is_step_finished = lsu_respValid;
-    end else begin
-      is_step_finished = lsu_respValid || ifu_respValid && !lsu_reqValid;
-    end
-  end
 endmodule;
 
 
