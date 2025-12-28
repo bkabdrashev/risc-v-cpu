@@ -6,3 +6,16 @@ verilator -LDFLAGS -lraylib -Wall --trace -cc miniRV.sv c_dpi.cpp --exe tb_miniR
 tail -n +2 vga.hex | sed -e 's/.*: //' -e 's/ /\n/g' | sed -e's/\(..\)\(..\)\(..\)\(..\)/\4 \3 \2 \1/' | xxd -r -p > vga.bin
 # translate bin to 1 byte hex  line by line
 xxd -p -c 1 dummy-minirv-npc.bin > dummy-minirv-npc2.hex
+
+# Ysyx SoC command
+verilator --trace -cc \
+  -I/home/bekzat/chip_bootcamp/ysyxSoC/perip/uart16550/rtl \
+  -I/home/bekzat/chip_bootcamp/ysyxSoC/perip/spi/rtl \
+  ysyxSoC_05318008.sv $(find /home/bekzat/chip_bootcamp/ysyxSoC/perip -type f -name '*.v') \
+  /home/bekzat/chip_bootcamp/ysyxSoC/ready-to-run/D-stage/ysyxSoCFull.v \
+  --timescale "1ns/1ns" \
+  --no-timing \
+  --top-module ysyxSoCTop \
+  --exe tb_main.cpp c_dpi.cpp \
+&& make -C obj_dir -f VysyxSoCTop.mk VysyxSoCTop \
+&& ./obj_dir/VysyxSoCTop
