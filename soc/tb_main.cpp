@@ -83,7 +83,7 @@ int main(int argc, char** argv, char** env) {
   Verilated::traceEverOn(true);
   VerilatedVcdC* m_trace = new VerilatedVcdC;
   cpu->trace(m_trace, 5);
-  m_trace->open("waveform.vcd");
+  // m_trace->open("waveform.vcd");
 
   uint8_t* data = NULL;
   size_t   size = 0;
@@ -98,21 +98,20 @@ int main(int argc, char** argv, char** env) {
     */
   // read_bin_file("code2.bin", &data, &size);
   // read_bin_file("hello-minirv-ysyxsoc.bin", &data, &size);
-  read_bin_file("new.bin", &data, &size);
+  read_bin_file("dummy-minirv-ysyxsoc.bin", &data, &size);
   flash_init(data, (uint32_t)size);
 
   uint64_t max_sim_time = 0;
-  uint64_t trace_period = 150;
   cpu->reset = 1;
 
   cpu->clock = 0;
   cpu->eval();
   uint64_t counter = 0;
-  m_trace->dump(counter++);
+  // m_trace->dump(counter++);
 
   cpu->clock = 1;
   cpu->eval();
-  m_trace->dump(counter++);
+  // m_trace->dump(counter++);
 
   cpu->clock = 0;
   cpu->reset = 0;
@@ -120,13 +119,11 @@ int main(int argc, char** argv, char** env) {
   for (uint64_t t = 0; (!max_sim_time || t < max_sim_time) && !contextp->gotFinish(); t++) {
     cpu->eval();
     cpu->clock ^= 1;
-    if (t % trace_period == 0) {
-      m_trace->dump(counter++);
-    }
+    // m_trace->dump(counter++);
   }
   printf("exit\n");
 
-  m_trace->close();
+  // m_trace->close();
   int exit_code = EXIT_SUCCESS;
   return exit_code;
 }

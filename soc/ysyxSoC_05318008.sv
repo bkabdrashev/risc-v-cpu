@@ -129,7 +129,7 @@ module ysyxSoC_05318008 (
       INST_LOAD_HALF: reg_wdata = {mem_half_extend, io_lsu_rdata[REG_END_HALF:0]};
       INST_LOAD_WORD: reg_wdata = io_lsu_rdata;
       INST_UPP:       reg_wdata = imm;
-      INST_JUMP:      reg_wdata = pc;         
+      INST_JUMP:      reg_wdata = pc_inc;         
       INST_REG:       reg_wdata = alu_res;        
       INST_IMM:       reg_wdata = alu_res;        
       default:        reg_wdata = 0;

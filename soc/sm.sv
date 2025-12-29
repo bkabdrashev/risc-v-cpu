@@ -19,9 +19,6 @@ module sm (
   logic [2:0] state;
   logic [2:0] next;
   logic [4:0] counter;
-  logic       next_lsu_wen;
-  logic       next_lsu_reqValid;
-  logic       next_ifu_reqValid;
 
   always_ff @(posedge clock or posedge reset) begin
     if (reset) begin
@@ -30,23 +27,20 @@ module sm (
     end
     else       begin
       state <= next;
-      lsu_wen      <= next_lsu_wen;
-      lsu_reqValid <= next_lsu_reqValid;
-      ifu_reqValid <= next_ifu_reqValid;
       counter <= counter + 1;
     end
   end
 
   always_comb begin
-    next_ifu_reqValid = 0;
-    next_lsu_reqValid = 0;
+    ifu_reqValid = 0;
+    lsu_reqValid = 0;
     pc_wen = 0;
     reg_wen = 0;
-    next_lsu_wen = 0;
+    lsu_wen = 0;
     unique case (state)
       STATE_START: begin
         if (counter == 10) begin
-          next_ifu_reqValid = 1;
+          ifu_reqValid = 1;
           next = STATE_FETCH;
         end
         else next = STATE_START;
@@ -55,10 +49,10 @@ module sm (
         if (ifu_respValid) begin
           pc_wen = 1;
           case (inst_type)
-            INST_LOAD_BYTE: begin next = STATE_LOAD;  next_lsu_reqValid = 1; end
-            INST_LOAD_HALF: begin next = STATE_LOAD;  next_lsu_reqValid = 1; end 
-            INST_LOAD_WORD: begin next = STATE_LOAD;  next_lsu_reqValid = 1; end 
-            INST_STORE:     begin next = STATE_STORE; next_lsu_reqValid = 1; next_lsu_wen = 1; end 
+            INST_LOAD_BYTE: begin next = STATE_LOAD;  lsu_reqValid = 1; end
+            INST_LOAD_HALF: begin next = STATE_LOAD;  lsu_reqValid = 1; end 
+            INST_LOAD_WORD: begin next = STATE_LOAD;  lsu_reqValid = 1; end 
+            INST_STORE:     begin next = STATE_STORE; lsu_reqValid = 1; lsu_wen = 1; end 
             default:        begin next = STATE_EXEC;  reg_wen = 1;      end
           endcase
         end
@@ -72,18 +66,19 @@ module sm (
       end
       STATE_STORE: begin
         if (lsu_respValid) begin
-          next = STATE_EXEC;
+          ifu_reqValid = 1;
+          next = STATE_FETCH;
         end
         else begin
           next = STATE_STORE;
         end
       end
       STATE_EXEC: begin
-        next_ifu_reqValid = 1;
+        ifu_reqValid = 1;
         next = STATE_FETCH;
       end
       default: begin
-        next_ifu_reqValid = 1;
+        ifu_reqValid = 1;
         next = STATE_FETCH;
       end
     endcase
