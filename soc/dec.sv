@@ -14,7 +14,7 @@ module dec (
   output logic [3:0]            inst_type
 );
 /* verilator lint_off UNUSEDPARAM */
-  `include "defs.vh"
+  `include "./soc/defs.vh"
 /* verilator lint_on UNUSEDPARAM */
 
   logic sign; 
@@ -43,6 +43,7 @@ module dec (
     u_imm = { inst[31:12], 12'd0 };
     s_imm = { {20{sign}}, inst[31:25], inst[11:7] };
     mem_wbmask = 4'b0000;
+    mem_size   = 2'b00;
     alu_op = 0;
     case (opcode)
       OPCODE_CALC_IMM: begin
@@ -92,13 +93,6 @@ module dec (
     endcase
 
     is_mem_sign = !funct3[2];
-
-    case (inst_type)
-      INST_LOAD_BYTE: mem_size = 2'b00;
-      INST_LOAD_HALF: mem_size = 2'b01;
-      INST_LOAD_WORD: mem_size = 2'b10;
-      default:        mem_size = 2'b00;
-    endcase
 
   end
 

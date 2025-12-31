@@ -5,7 +5,7 @@ module alu (
   output logic [REG_END_WORD:0] res
 );
 /* verilator lint_off UNUSEDPARAM */
-  `include "defs.vh"
+  `include "./soc/defs.vh"
 /* verilator lint_on UNUSEDPARAM */
 
   logic [4:0] shamt;

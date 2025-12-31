@@ -117,15 +117,15 @@ int main(int argc, char** argv, char** env) {
   uint64_t counter = 0;
   uint8_t* data = NULL;
   size_t   size = 0;
-  uint32_t insts[5] = {
-    lui(0x80000, REG_SP),     // 0
-    li(0x1234, REG_T0),         // 4
-    sw( 0x4, REG_T0, REG_SP), // 8
-    // li(0x34, REG_T1),         // C
-    // sw( 0x5, REG_T1, REG_SP), // 10
-    lw( 0x4, REG_SP, REG_T2), // 14
-    ebreak()
-  };
+  // uint32_t insts[5] = {
+  //   lui(0x80000, REG_SP),     // 0
+  //   li(0x1234, REG_T0),         // 4
+  //   sw( 0x4, REG_T0, REG_SP), // 8
+  //   // li(0x34, REG_T1),         // C
+  //   // sw( 0x5, REG_T1, REG_SP), // 10
+  //   lw( 0x4, REG_SP, REG_T2), // 14
+  //   ebreak()
+  // };
   // uint32_t insts[7] = {
   //   lui(0x80000, REG_SP),     // 0
   //   li(0x12, REG_T0),         // 4
@@ -135,11 +135,11 @@ int main(int argc, char** argv, char** env) {
   //   lw( 0x4, REG_SP, REG_T2), // 14
   //   ebreak()
   // };
-  tb->insts = insts;
-  tb->n_insts = 5;
-  print_all_instructions(tb);
-  data = (uint8_t*)insts;
-  size = tb->n_insts*4;
+  // tb->insts = insts;
+  // tb->n_insts = 5;
+  // print_all_instructions(tb);
+  // data = (uint8_t*)insts;
+  // size = tb->n_insts*4;
   /*
    0:	555550b7          	lui	x1,0x55555
    4:	00108093          	addi	x1,x1,1 # 0x55555001
@@ -149,10 +149,10 @@ int main(int argc, char** argv, char** env) {
   14:	00012183          	lw	x3,0(x2)
   18:	00100073          	ebreak
     */
-  // read_bin_file("code2.bin", &data, &size);
-  // read_bin_file("hello-minirv-ysyxsoc.bin", &data, &size);
-  read_bin_file("dummy-minirv-ysyxsoc.bin", &data, &size);
-  // read_bin_file("dummy-flash-ysyxsoc.bin", &data, &size);
+  // read_bin_file("./bin/code2.bin", &data, &size);
+  // read_bin_file("./bin/hello-minirv-ysyxsoc.bin", &data, &size);
+  // read_bin_file("./bin/dummy-minirv-ysyxsoc.bin", &data, &size);
+  read_bin_file("./bin/dummy-flash-ysyxsoc.bin", &data, &size);
   flash_init(data, (uint32_t)size);
 
   uint64_t max_sim_time = 0;

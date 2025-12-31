@@ -7,13 +7,13 @@ module rf (
   input logic  [REG_END_ID:0]   rs2,
   input logic  [REG_END_WORD:0] wdata,
   output logic [REG_END_WORD:0] rdata1,
-  output logic [REG_END_WORD:0] rdata2
+  output logic [REG_END_WORD:0] rdata2,
+  output logic [N_REGS-1:0][REG_END_WORD:0] regs
 );
 /* verilator lint_off UNUSEDPARAM */
-  `include "defs.vh"
+  `include "./soc/defs.vh"
 /* verilator lint_on UNUSEDPARAM */
 
-  logic [REG_END_WORD:0] regs [0:N_REGS-1];
   integer i;
 
   always_ff @(posedge clock or posedge reset) begin

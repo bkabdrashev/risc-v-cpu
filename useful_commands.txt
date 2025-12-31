@@ -9,14 +9,16 @@ xxd -p -c 1 dummy-minirv-npc.bin > dummy-minirv-npc2.hex
 
 # Ysyx SoC command
 verilator --trace -cc \
-  -I/home/bekzat/chip_bootcamp/ysyxSoC/perip/uart16550/rtl \
-  -I/home/bekzat/chip_bootcamp/ysyxSoC/perip/spi/rtl \
-  ysyxSoC_05318008.sv $(find /home/bekzat/chip_bootcamp/ysyxSoC/perip -type f -name '*.v') \
-  /home/bekzat/chip_bootcamp/ysyxSoC/ready-to-run/D-stage/ysyxSoCFull.v \
+  -IysyxSoC/perip/uart16550/rtl \
+  -IysyxSoC/perip/spi/rtl \
+  $(find ysyxSoC/perip -type f -name '*.v') \
+  $(find soc/ -type f -name '*.sv') \
+  $(find soc/ -type f -name '*.vh') \
+  ysyxSoC/ready-to-run/D-stage/ysyxSoCFull.v \
   --timescale "1ns/1ns" \
   --no-timing \
   --top-module ysyxSoCTop \
-  --exe tb_main.cpp c_dpi.cpp \
+  --exe soc/soc_main.cpp soc/c_dpi.cpp \
 && make -C obj_dir -f VysyxSoCTop.mk VysyxSoCTop \
 && ./obj_dir/VysyxSoCTop
 

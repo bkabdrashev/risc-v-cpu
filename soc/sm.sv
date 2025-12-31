@@ -8,6 +8,7 @@ module sm (
   input  logic [31:0]      lsu_addr,
   input  logic [3:0] inst_type,
 
+  output logic finished,
   output logic reg_wen,
   output logic pc_wen,
   output logic lsu_wen,
@@ -15,12 +16,12 @@ module sm (
   output logic ifu_reqValid
 );
 /* verilator lint_off UNUSEDPARAM */
-  `include "defs.vh"
+  `include "./soc/defs.vh"
 /* verilator lint_on UNUSEDPARAM */
 
   logic [2:0] state;
   logic [2:0] next;
-  // logic [4:0] counter;
+  logic       next_finished;
   logic ifu_inflight, lsu_inflight;
 
   // NOTE: this piece of code handles edges cases where ifu is requested but sudden reset was done. Then inflight becomes 0 and ifu_respValid is ignored
@@ -40,11 +41,11 @@ module sm (
   always_ff @(posedge clock or posedge reset) begin
     if (reset) begin
       state <= STATE_START;
-      // counter <= 0;
+      finished <= 0;
     end
     else       begin
       state <= next;
-      // counter <= counter + 1;
+      finished <= next_finished;
     end
   end
 
@@ -54,6 +55,7 @@ module sm (
     pc_wen = 0;
     reg_wen = 0;
     lsu_wen = 0;
+    next_finished = 0;
     unique case (state)
       STATE_START: begin
         // if (counter == 10) begin
@@ -93,6 +95,7 @@ module sm (
       STATE_STORE: begin
         if (lsu_respValid && lsu_inflight) begin
           ifu_reqValid = 1;
+          next_finished = 1;
           next = STATE_FETCH;
         end
         else begin
@@ -101,6 +104,7 @@ module sm (
       end
       STATE_EXEC: begin
         ifu_reqValid = 1;
+        next_finished = 1;
         next = STATE_FETCH;
       end
       default: begin
