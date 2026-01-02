@@ -54,7 +54,11 @@ module cpu (
   logic reg_wen;
   logic [7:0]  byte2;
   logic [15:0] half2;
+  logic [3:0] lsu_wmask;
   logic [31:0] lsu_wdata;
+  logic [31:0] lsu_rdata;
+  logic [31:0] lsu_addr;
+  logic [1:0]  lsu_size;
 
   pc u_pc(
     .clock(clock),
@@ -73,8 +77,6 @@ module cpu (
     .is_mem_sign(is_mem_sign),
     .alu_op(alu_op),
     .imm(imm),
-    .mem_wbmask(io_lsu_wmask),
-    .mem_size(io_lsu_size),
     .inst_type(inst_type));
 
   alu u_alu(
@@ -102,8 +104,6 @@ module cpu (
     .clock(clock),
     .reset(reset),
 
-    .lsu_addr(io_lsu_addr),
-    .lsu_rdata(io_lsu_rdata),
     .ifu_respValid(io_ifu_respValid),
     .lsu_respValid(io_lsu_respValid),
     .inst_type(inst_type),
@@ -121,25 +121,97 @@ module cpu (
     pc_inc = pc + 4;
 
     case (inst_type)
-      INST_REG:       alu_rhs = reg_rdata2;        
-      INST_LOAD_BYTE: alu_rhs = imm;
-      INST_LOAD_HALF: alu_rhs = imm;
-      INST_LOAD_WORD: alu_rhs = imm;
-      INST_STORE:     alu_rhs = imm;
-      INST_JUMP:      alu_rhs = imm;         
-      INST_IMM:       alu_rhs = imm;        
-      INST_UPP:       alu_rhs = 0;        
-      default:        alu_rhs = 0;
+      INST_REG:        alu_rhs = reg_rdata2;        
+      INST_LOAD_BYTE:  alu_rhs = imm;
+      INST_LOAD_HALF:  alu_rhs = imm;
+      INST_LOAD_WORD:  alu_rhs = imm;
+      INST_STORE_BYTE: alu_rhs = imm;
+      INST_STORE_HALF: alu_rhs = imm;
+      INST_STORE_WORD: alu_rhs = imm;
+      INST_JUMP:       alu_rhs = imm;         
+      INST_IMM:        alu_rhs = imm;        
+      INST_UPP:        alu_rhs = 0;        
+      default:         alu_rhs = 0;
     endcase
 
-    mem_byte_sign   = io_lsu_rdata[REG_END_BYTE] & is_mem_sign;
-    mem_half_sign   = io_lsu_rdata[REG_END_HALF] & is_mem_sign;
+    byte2 = reg_rdata2[7:0];
+    half2 = reg_rdata2[15:0];
+
+    lsu_size  = 0;
+    lsu_addr  = 0;
+    lsu_wdata = 0;
+    lsu_rdata = 0;
+    lsu_wmask = 0;
+
+    case (inst_type)
+      INST_STORE_BYTE: begin
+        lsu_addr = alu_res;
+        case (alu_res[1:0])
+          2'b00: begin lsu_wmask = 4'b0001; lsu_wdata = {8'b0, 8'b0, 8'b0, byte2}; end
+          2'b01: begin lsu_wmask = 4'b0010; lsu_wdata = {8'b0, 8'b0, byte2, 8'b0}; end
+          2'b10: begin lsu_wmask = 4'b0100; lsu_wdata = {8'b0, byte2, 8'b0, 8'b0}; end
+          2'b11: begin lsu_wmask = 4'b1000; lsu_wdata = {byte2, 8'b0, 8'b0, 8'b0}; end
+        endcase
+      end
+      INST_STORE_HALF: begin
+        lsu_addr = alu_res;
+        case (alu_res[1:0])
+          2'b00: begin lsu_wmask = 4'b0011; lsu_wdata = {8'b0, 8'b0, half2}; end
+          2'b01: begin lsu_wmask = 4'b0110; lsu_wdata = {8'b0, half2, 8'b0}; end
+          2'b10: begin lsu_wmask = 4'b1100; lsu_wdata = {half2, 8'b0, 8'b0}; end
+          2'b11: begin lsu_wmask = 4'b0000; lsu_wdata = 32'b0; end // TODO: exceptional case
+        endcase
+      end
+      INST_STORE_WORD: begin
+        lsu_addr = alu_res;
+        case (alu_res[1:0])
+          2'b00: begin lsu_wmask = 4'b1111; lsu_wdata = reg_rdata2; end
+          2'b01: begin lsu_wmask = 4'b0000; lsu_wdata = 32'b0; end // TODO: exceptional case
+          2'b10: begin lsu_wmask = 4'b0000; lsu_wdata = 32'b0; end // TODO: exceptional case
+          2'b11: begin lsu_wmask = 4'b0000; lsu_wdata = 32'b0; end // TODO: exceptional case
+        endcase
+      end
+      INST_LOAD_BYTE: begin
+        lsu_size = 2'b10;
+        lsu_addr = {alu_res[31:2], 2'b00}; 
+        case (alu_res[1:0])
+          2'b00: begin lsu_rdata = {8'b0, 8'b0, 8'b0, io_lsu_rdata[ 7: 0]}; end
+          2'b01: begin lsu_rdata = {8'b0, 8'b0, io_lsu_rdata[15: 8], 8'b0}; end
+          2'b10: begin lsu_rdata = {8'b0, io_lsu_rdata[23:16], 8'b0, 8'b0}; end
+          2'b11: begin lsu_rdata = {io_lsu_rdata[31:24], 8'b0, 8'b0, 8'b0}; end
+        endcase
+      end
+      INST_LOAD_HALF: begin
+        lsu_size = 2'b10;
+        lsu_addr = {alu_res[31:2], 2'b00}; 
+        case (alu_res[1:0])
+          2'b00: begin lsu_rdata = {8'b0, 8'b0, io_lsu_rdata[15: 0]}; end
+          2'b01: begin lsu_rdata = {8'b0, io_lsu_rdata[23: 8], 8'b0}; end
+          2'b10: begin lsu_rdata = {io_lsu_rdata[31:16], 8'b0, 8'b0}; end
+          2'b11: begin lsu_rdata = 32'b0; end // TODO: exceptional case
+        endcase
+      end
+      INST_LOAD_WORD: begin
+        lsu_size = 2'b10;
+        lsu_addr = {alu_res[31:2], 2'b00}; 
+        case (alu_res[1:0])
+          2'b00: begin lsu_rdata = io_lsu_rdata; end
+          2'b01: begin lsu_rdata = 32'b0; end // TODO: exceptional case
+          2'b10: begin lsu_rdata = 32'b0; end // TODO: exceptional case
+          2'b11: begin lsu_rdata = 32'b0; end // TODO: exceptional case
+        endcase
+      end
+      default:  begin end
+    endcase
+    
+    mem_byte_sign   = lsu_rdata[REG_END_BYTE] & is_mem_sign;
+    mem_half_sign   = lsu_rdata[REG_END_HALF] & is_mem_sign;
     mem_byte_extend = {(REG_END_WORD-REG_END_BYTE){mem_byte_sign}};
     mem_half_extend = {(REG_END_WORD-REG_END_HALF){mem_half_sign}};
     case (inst_type)
-      INST_LOAD_BYTE: reg_wdata = {mem_byte_extend, io_lsu_rdata[REG_END_BYTE:0]};
-      INST_LOAD_HALF: reg_wdata = {mem_half_extend, io_lsu_rdata[REG_END_HALF:0]};
-      INST_LOAD_WORD: reg_wdata = io_lsu_rdata;
+      INST_LOAD_BYTE: reg_wdata = {mem_byte_extend, lsu_rdata[REG_END_BYTE:0]};
+      INST_LOAD_HALF: reg_wdata = {mem_half_extend, lsu_rdata[REG_END_HALF:0]};
+      INST_LOAD_WORD: reg_wdata = lsu_rdata;
       INST_UPP:       reg_wdata = imm;
       INST_JUMP:      reg_wdata = pc_inc;         
       INST_REG:       reg_wdata = alu_res;        
@@ -156,19 +228,13 @@ module cpu (
       regs[i] = rf_regs[i];
     end
 
-    byte2 = reg_rdata2[7:0];
-    half2 = reg_rdata2[15:0];
-
-    case (io_lsu_wmask)
-      4'b0001: lsu_wdata = {byte2, byte2, byte2, byte2};
-      4'b0011: lsu_wdata = {half2, half2};
-      4'b1111: lsu_wdata = reg_rdata2;
-      default: lsu_wdata = 0;
-    endcase
   end
-  assign io_lsu_addr  = alu_res;
+
+  assign io_lsu_size  = lsu_size;
+  assign io_lsu_addr  = lsu_addr;
   assign io_lsu_wdata = lsu_wdata;
-  assign io_ifu_addr = pc;
+  assign io_lsu_wmask = lsu_wmask;
+  assign io_ifu_addr  = pc;
 
 endmodule;
 

@@ -4,8 +4,6 @@ module sm (
 
   input  logic       ifu_respValid,
   input  logic       lsu_respValid,
-  input  logic [31:0]     lsu_rdata,
-  input  logic [31:0]      lsu_addr,
   input  logic [3:0] inst_type,
 
   output logic finished,
@@ -82,7 +80,9 @@ module sm (
             INST_LOAD_BYTE: begin next = STATE_LOAD;  lsu_reqValid = 1; end
             INST_LOAD_HALF: begin next = STATE_LOAD;  lsu_reqValid = 1; end 
             INST_LOAD_WORD: begin next = STATE_LOAD;  lsu_reqValid = 1; end 
-            INST_STORE:     begin next = STATE_STORE; lsu_reqValid = 1; lsu_wen = 1; end 
+            INST_STORE_BYTE:begin next = STATE_STORE; lsu_reqValid = 1; lsu_wen = 1; end 
+            INST_STORE_HALF:begin next = STATE_STORE; lsu_reqValid = 1; lsu_wen = 1; end 
+            INST_STORE_WORD:begin next = STATE_STORE; lsu_reqValid = 1; lsu_wen = 1; end 
             default:        begin next = STATE_EXEC; reg_wen = 1;       end
           endcase
         end
@@ -94,7 +94,6 @@ module sm (
       STATE_LOAD: begin
         if (lsu_respValid && lsu_inflight) begin
           next = STATE_EXEC; reg_wen = 1;
-          // if (lsu_addr == 'h1000_0005 && |lsu_rdata) $display("uart lsr: %b", lsu_rdata);
         end
         else begin
           next = STATE_LOAD;

@@ -27,16 +27,18 @@ localparam OP_OR   = 4'b0110;
 localparam OP_AND  = 4'b0111; 
 localparam FUNCT3_SR      = 3'b101;
 
-localparam INST_UNDEFINED = 4'b0000;
-localparam INST_EBREAK    = 4'b0001;
-localparam INST_LOAD_BYTE = 4'b1000;
-localparam INST_LOAD_HALF = 4'b1001;
-localparam INST_LOAD_WORD = 4'b1010;
-localparam INST_STORE     = 4'b1011;
-localparam INST_IMM       = 4'b1100;
-localparam INST_REG       = 4'b1101;
-localparam INST_UPP       = 4'b1110;
-localparam INST_JUMP      = 4'b1111;
+localparam INST_UNDEFINED  = 4'b0000;
+localparam INST_EBREAK     = 4'b0001;
+localparam INST_LOAD_BYTE  = 4'b1000;
+localparam INST_LOAD_HALF  = 4'b1001;
+localparam INST_LOAD_WORD  = 4'b1010;
+localparam INST_STORE_BYTE = 4'b0100;
+localparam INST_STORE_HALF = 4'b0101;
+localparam INST_STORE_WORD = 4'b0110;
+localparam INST_IMM        = 4'b1100;
+localparam INST_REG        = 4'b1101;
+localparam INST_UPP        = 4'b1110;
+localparam INST_JUMP       = 4'b1111;
 
 
 localparam FUNCT3_BYTE        = 3'b000;

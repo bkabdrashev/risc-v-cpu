@@ -8,9 +8,7 @@ module dec (
 
   output logic [REG_END_WORD:0] imm,
   output logic [3:0]            alu_op,
-  output logic [3:0]            mem_wbmask,
   output logic                  is_mem_sign,
-  output logic [1:0]            mem_size,
   output logic [3:0]            inst_type);
 /* verilator lint_off UNUSEDPARAM */
   `include "./soc/defs.vh"
@@ -41,8 +39,6 @@ module dec (
     i_imm = { {20{sign}}, inst[31:20] };
     u_imm = { inst[31:12], 12'd0 };
     s_imm = { {20{sign}}, inst[31:25], inst[11:7] };
-    mem_wbmask = 4'b0000;
-    mem_size   = 2'b00;
     alu_op = 0;
     case (opcode)
       OPCODE_CALC_IMM: begin
@@ -56,25 +52,11 @@ module dec (
       end
       OPCODE_LOAD: begin
         imm = i_imm;
-        case (funct3)
-          FUNCT3_BYTE:        begin inst_type = {2'b10,funct3[1:0]}; mem_size = 2'b00; end
-          FUNCT3_HALF:        begin inst_type = {2'b10,funct3[1:0]}; mem_size = 2'b01; end
-          FUNCT3_WORD:        begin inst_type = {2'b10,funct3[1:0]}; mem_size = 2'b10; end
-          FUNCT3_BYTE_UNSIGN: begin inst_type = {2'b10,funct3[1:0]}; mem_size = 2'b01; end
-          FUNCT3_HALF_UNSIGN: begin inst_type = {2'b10,funct3[1:0]}; mem_size = 2'b10; end
-          default:            begin inst_type = 0;                   mem_size = 2'b00; end
-        endcase
+        inst_type = {2'b10,funct3[1:0]};
       end
       OPCODE_STORE: begin
         imm = s_imm;
-        case (funct3)
-          FUNCT3_BYTE:        begin mem_wbmask = 4'b0001; mem_size = 2'b00; end
-          FUNCT3_HALF:        begin mem_wbmask = 4'b0011; mem_size = 2'b01; end
-          FUNCT3_WORD:        begin mem_wbmask = 4'b1111; mem_size = 2'b10; end
-          default:            begin mem_wbmask = 4'b0000; mem_size = 2'b00; end
-        endcase
-
-        inst_type = INST_STORE;
+        inst_type = {2'b01,funct3[1:0]};
       end
       OPCODE_LUI: begin
         imm = u_imm;
