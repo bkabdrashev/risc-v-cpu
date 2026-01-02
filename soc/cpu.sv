@@ -52,6 +52,9 @@ module cpu (
 
   logic [N_REGS-1:0][REG_END_WORD:0] rf_regs;
   logic reg_wen;
+  logic [7:0]  byte2;
+  logic [15:0] half2;
+  logic [31:0] lsu_wdata;
 
   pc u_pc(
     .clock(clock),
@@ -153,9 +156,18 @@ module cpu (
       regs[i] = rf_regs[i];
     end
 
+    byte2 = reg_rdata2[7:0];
+    half2 = reg_rdata2[15:0];
+
+    case (io_lsu_wmask)
+      4'b0001: lsu_wdata = {byte2, byte2, byte2, byte2};
+      4'b0011: lsu_wdata = {half2, half2};
+      4'b1111: lsu_wdata = reg_rdata2;
+      default: lsu_wdata = 0;
+    endcase
   end
   assign io_lsu_addr  = alu_res;
-  assign io_lsu_wdata = reg_rdata2;
+  assign io_lsu_wdata = lsu_wdata;
   assign io_ifu_addr = pc;
 
 endmodule;

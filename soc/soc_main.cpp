@@ -79,7 +79,7 @@ int read_bin_file(const char* path, uint8_t** out_data, size_t* out_size) {
   return 1;
 }
 
-extern "C" void flash_init(uint8_t* data, uint32_t size);
+extern void flash_init(uint8_t* data, uint32_t size);
 
 struct TestBenchConfig {
   bool is_trace  = false;
