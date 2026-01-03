@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+# --build --runtime-debug -CFLAGS "-g3 -O0 -fno-omit-frame-pointer" -LDFLAGS "-g" \
 verilator --trace -cc \
   soc/cpu.sv \
   soc/rf.sv soc/sm.sv soc/pc.sv soc/dec.sv soc/alu.sv soc/csr.sv soc/defs.vh \

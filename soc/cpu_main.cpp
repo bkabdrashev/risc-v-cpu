@@ -182,7 +182,7 @@ uint32_t v_mem_read(TestBench* tb, uint32_t addr) {
       tb->vmem[addr+1] <<  8 | tb->vmem[addr+0] <<  0 ;
   }
   else {
-    printf("[WARNING]: mem read memory is not mapped\n");
+    printf("[WARNING]: mem read  memory is not mapped 0x%x\n", addr);
   }
   return result;
 }
@@ -218,7 +218,7 @@ void v_mem_write(TestBench* tb, uint8_t wen, uint8_t wbmask, uint32_t addr, uint
       if (wbmask & 0b1000) tb->vmem[addr + 3] = (wdata >> 24) & 0xff;
     }
     else {
-      printf("[WARNING]: mem write memory is not mapped\n");
+      printf("[WARNING]: mem write memory is not mapped 0x%x\n", addr);
     }
   }
 }
