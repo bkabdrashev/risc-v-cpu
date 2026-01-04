@@ -1,3 +1,5 @@
+# --build --runtime-debug -CFLAGS "-g3 -O0 -fno-omit-frame-pointer" -LDFLAGS "-g" \
+
 verilator --trace -cc \
   -IysyxSoC/perip/uart16550/rtl \
   -IysyxSoC/perip/spi/rtl \

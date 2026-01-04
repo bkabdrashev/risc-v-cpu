@@ -54,7 +54,7 @@ void g_mem_write(Gcpu* cpu, uint8_t wen, uint8_t wbmask, uint32_t addr, uint32_t
   }
 }
 
-uint32_t v_mem_read(TestBench* tb, uint32_t addr);
+// uint32_t v_mem_read(TestBench* tb, uint32_t addr);
 uint32_t g_mem_read(Gcpu* cpu, uint32_t addr) {
   uint32_t result = 0;
   if (addr >= FLASH_START && addr < FLASH_END-3) {
@@ -64,7 +64,7 @@ uint32_t g_mem_read(Gcpu* cpu, uint32_t addr) {
       cpu->flash[addr+1] <<  8 | cpu->flash[addr+0] <<  0 ;
   }
   else if (addr >= UART_START && addr < UART_END-3) {
-    result = v_mem_read(cpu->tb, addr);
+    // result = v_mem_read(cpu->tb, addr);
   }
   else if (addr >= MEM_START && addr < MEM_END-3) {
     addr -= MEM_START;

@@ -14,20 +14,20 @@ module cpu (
   output [1:0]  io_lsu_size,
   output        io_lsu_wen,
   output [31:0] io_lsu_wdata,
-  output [3:0]  io_lsu_wmask,
-  output logic [REG_END_WORD:0] regs [0:N_REGS-1],
-  output logic [REG_END_WORD:0] pc,
-  output logic                  ebreak,
-  output logic                  is_done_instruction);
+  output [3:0]  io_lsu_wmask);
 /* verilator lint_off UNUSEDPARAM */
   `include "./soc/defs.vh"
 /* verilator lint_on UNUSEDPARAM */
+
+  logic                  ebreak;
+  logic                  is_done_instruction;
 
   logic [REG_END_ID:0]   rd;
   logic [REG_END_ID:0]   rs1;
   logic [REG_END_ID:0]   rs2;
   logic [REG_END_WORD:0] imm;
 
+  logic [REG_END_WORD:0] pc;
   logic                  pc_wen;
   logic                  is_pc_jump;
   logic [REG_END_WORD:0] pc_next;
@@ -55,7 +55,6 @@ module cpu (
 
   logic [INST_TYPE_END:0]  inst_type;
 
-  logic [N_REGS-1:0][REG_END_WORD:0] rf_regs;
   logic reg_wen;
   logic [7:0]  byte2;
   logic [15:0] half2;
@@ -113,8 +112,7 @@ module cpu (
     .rs2(rs2),
 
     .rdata1(reg_rdata1),
-    .rdata2(reg_rdata2),
-    .regs(rf_regs));
+    .rdata2(reg_rdata2));
 
   csr u_csr(
     .clock(clock),
@@ -284,10 +282,6 @@ module cpu (
        else pc_next = pc_inc;
     end
     else pc_next = pc;
-    for (int i = 0; i < N_REGS; i++) begin
-      regs[i] = rf_regs[i];
-    end
-
   end
 
   assign io_lsu_size  = lsu_size;
