@@ -3,6 +3,47 @@
 #include "c_dpi.h"
 #include "mem_map.h"
 
+#define ALU_OP_ADD  (0b0000)
+#define ALU_OP_SUB  (0b1000) 
+#define ALU_OP_SLL  (0b0001) 
+#define ALU_OP_SLT  (0b0010) 
+#define ALU_OP_SLTU (0b0011) 
+#define ALU_OP_XOR  (0b0100) 
+#define ALU_OP_SRL  (0b0101) 
+#define ALU_OP_SRA  (0b1101) 
+#define ALU_OP_OR   (0b0110) 
+#define ALU_OP_AND  (0b0111) 
+
+#define COM_OP_EQ  (0b000)
+#define COM_OP_NE  (0b001)
+#define COM_OP_LT  (0b100)
+#define COM_OP_GE  (0b101)
+#define COM_OP_LTU (0b110)
+#define COM_OP_GEU (0b111)
+
+#define INST_UNDEFINED  (0b00000)
+
+#define INST_EBREAK     (0b10000)
+#define INST_CSRRW      (0b10001)
+#define INST_CSRRS      (0b10010)
+#define INST_CSRRC      (0b10011)
+#define INST_CSRRWI     (0b10101)
+#define INST_CSRRSI     (0b10110)
+#define INST_CSRRCI     (0b10111)
+
+#define INST_LOAD_BYTE  (0b01100)
+#define INST_LOAD_HALF  (0b01101)
+#define INST_LOAD_WORD  (0b01110)
+#define INST_STORE      (0b01000)
+
+#define INST_BRANCH     (0b00011)
+#define INST_IMM        (0b00100)
+#define INST_REG        (0b00101)
+#define INST_UPP        (0b00110)
+#define INST_JUMP       (0b00111)
+#define INST_JUMPR      (0b01111)
+#define INST_AUIPC      (0b11111)
+
 struct Vuart {
   uint8_t&  ier;
   uint8_t&  iir;
@@ -135,16 +176,29 @@ uint32_t alu_eval(uint8_t op, uint32_t lhs, uint32_t rhs) {
   uint32_t shamt = take_bits_range(rhs, 0, 4);
   uint32_t result = 0;
   switch (op) {
-    case OP_ADD:  result = lhs + rhs; break;
-    case OP_SUB:  result = lhs - rhs; break;
-    case OP_XOR:  result = lhs ^ rhs; break;
-    case OP_AND:  result = lhs & rhs; break;
-    case OP_OR:   result = lhs | rhs; break;
-    case OP_SLL:  result = lhs << shamt; break;
-    case OP_SRL:  result = lhs >> shamt; break;
-    case OP_SRA:  result = sar32(lhs, shamt); break;
-    case OP_SLT:  result = slt(lhs, rhs); break;
-    case OP_SLTU: result = lhs < rhs; break;
+    case ALU_OP_ADD:  result = lhs + rhs;         break;
+    case ALU_OP_SUB:  result = lhs - rhs;         break;
+    case ALU_OP_XOR:  result = lhs ^ rhs;         break;
+    case ALU_OP_AND:  result = lhs & rhs;         break;
+    case ALU_OP_OR:   result = lhs | rhs;         break;
+    case ALU_OP_SLL:  result = lhs << shamt;      break;
+    case ALU_OP_SRL:  result = lhs >> shamt;      break;
+    case ALU_OP_SRA:  result = sar32(lhs, shamt); break;
+    case ALU_OP_SLT:  result = slt(lhs, rhs);     break;
+    case ALU_OP_SLTU: result = lhs < rhs;         break;
+  }
+  return result;
+}
+
+uint32_t compare(uint8_t op, uint32_t lhs, uint32_t rhs) {
+  uint32_t result = 0;
+  switch (op) {
+    case COM_OP_EQ:  result = lhs == rhs;      break;
+    case COM_OP_NE:  result = lhs != rhs;      break;
+    case COM_OP_LT:  result = slt(lhs, rhs);   break;
+    case COM_OP_GE:  result = !slt(lhs, rhs);  break;
+    case COM_OP_LTU: result = lhs <  rhs;      break;
+    case COM_OP_GEU: result = lhs >= rhs;      break;
   }
   return result;
 }
@@ -184,6 +238,7 @@ struct Dec_out {
   uint8_t mem_wbmask;
   uint8_t is_mem_sign;
   uint8_t alu_op;
+  uint8_t com_op;
   uint8_t ebreak;
   uint32_t inst_type;
 };
@@ -212,6 +267,16 @@ Dec_out decode(uint32_t inst) {
   if (sign) s_imm = (~0u << 12) | top_imm | bot_imm;
   else      s_imm = ( 0u << 12) | top_imm | bot_imm;
 
+  uint32_t j_imm = 0;
+  if (sign) j_imm = (~0u << 20) | take_bits_range(inst, 12, 19) << 11 | take_bit(inst, 20) << 10 | take_bits_range(inst, 21, 30) << 1 | 0b0;
+  else      j_imm = ( 0u << 20) | take_bits_range(inst, 12, 19) << 11 | take_bit(inst, 20) << 10 | take_bits_range(inst, 21, 30) << 1 | 0b0;
+
+  uint32_t b_imm = 0;
+  if (sign) b_imm = (~0u << 12) | take_bit(inst, 7) << 11 | take_bits_range(inst, 25, 30) << 5 | take_bits_range(inst, 8, 11) << 1 | 0b0;
+  else      b_imm = ( 0u << 12) | take_bit(inst, 7) << 11 | take_bits_range(inst, 25, 30) << 5 | take_bits_range(inst, 8, 11) << 1 | 0b0;
+
+
+
   switch (opcode) {
     case OPCODE_CALC_IMM: {
       out.imm = i_imm;
@@ -225,21 +290,21 @@ Dec_out decode(uint32_t inst) {
     case OPCODE_LOAD: {
       out.imm = i_imm;
       switch (funct3) {
-        case FUNCT3_BYTE:        out.inst_type = (0b10 << 2)|funct3 & 0b11; break;
-        case FUNCT3_HALF:        out.inst_type = (0b10 << 2)|funct3 & 0b11; break;
-        case FUNCT3_WORD:        out.inst_type = (0b10 << 2)|funct3 & 0b11; break;
-        case FUNCT3_BYTE_UNSIGN: out.inst_type = (0b10 << 2)|funct3 & 0b11; break;
-        case FUNCT3_HALF_UNSIGN: out.inst_type = (0b10 << 2)|funct3 & 0b11; break;
-        default:                 out.inst_type = 0;                         break;
+        case FUNCT3_LB:  out.inst_type = (0b011 << 2)|funct3 & 0b11; break;
+        case FUNCT3_LH:  out.inst_type = (0b011 << 2)|funct3 & 0b11; break;
+        case FUNCT3_LW:  out.inst_type = (0b011 << 2)|funct3 & 0b11; break;
+        case FUNCT3_LBU: out.inst_type = (0b011 << 2)|funct3 & 0b11; break;
+        case FUNCT3_LHU: out.inst_type = (0b011 << 2)|funct3 & 0b11; break;
+        default:         out.inst_type = 0;                          break;
       }
     } break;
     case OPCODE_STORE: {
       out.imm = s_imm;
       switch (funct3) {
-        case FUNCT3_BYTE: out.mem_wbmask = 0b0001; break;
-        case FUNCT3_HALF: out.mem_wbmask = 0b0011; break;
-        case FUNCT3_WORD: out.mem_wbmask = 0b1111; break;
-        default:          out.mem_wbmask = 0b0000; break;
+        case FUNCT3_SB: out.mem_wbmask = 0b0001; break;
+        case FUNCT3_SH: out.mem_wbmask = 0b0011; break;
+        case FUNCT3_SW: out.mem_wbmask = 0b1111; break;
+        default:        out.mem_wbmask = 0b0000; break;
       }
       out.inst_type = INST_STORE;
     } break;
@@ -247,9 +312,22 @@ Dec_out decode(uint32_t inst) {
       out.imm = u_imm;
       out.inst_type = INST_UPP;
     } break;
+    case OPCODE_AUIPC: {
+      out.imm = u_imm;
+      out.inst_type = INST_AUIPC;
+    } break;
     case OPCODE_JALR: {
       out.imm = i_imm;
+      out.inst_type = INST_JUMPR;
+    } break;
+    case OPCODE_JAL: {
+      out.imm = j_imm;
       out.inst_type = INST_JUMP;
+    } break;
+    case OPCODE_BRANCH: {
+      out.imm = b_imm;
+      out.inst_type = INST_BRANCH;
+      out.com_op = funct3;
     } break;
     case OPCODE_SYSTEM: {
       out.inst_type = 0;
@@ -267,19 +345,23 @@ uint8_t cpu_eval(Gcpu* cpu) {
   Dec_out  dec  = decode(inst);
   RF_out   rf   = rf_read(cpu, dec.reg_src1, dec.reg_src2);
 
+  uint32_t alu_lhs = 0;
+  switch (dec.inst_type) {
+    case INST_REG:       alu_lhs = rf.rdata2; break; 
+    case INST_JUMP:      alu_lhs = cpu->pc;   break; 
+    case INST_AUIPC:     alu_lhs = cpu->pc;   break; 
+    case INST_BRANCH:    alu_lhs = cpu->pc;   break; 
+    default:             alu_lhs = rf.rdata1; break;
+  }
   uint32_t alu_rhs = 0;
   switch (dec.inst_type) {
     case INST_REG:       alu_rhs = rf.rdata2; break; 
-    case INST_LOAD_BYTE: alu_rhs = dec.imm;       break;
-    case INST_LOAD_HALF: alu_rhs = dec.imm;       break;
-    case INST_LOAD_WORD: alu_rhs = dec.imm;       break;
-    case INST_STORE:     alu_rhs = dec.imm;       break;
-    case INST_JUMP:      alu_rhs = dec.imm;       break; 
-    case INST_IMM:       alu_rhs = dec.imm;       break;
-    case INST_UPP:       alu_rhs = 0;             break;
-    default:             alu_rhs = 0;             break;
+    case INST_UPP:       alu_rhs = 0;         break;
+    default:             alu_rhs = dec.imm;   break;
   }
-  uint32_t alu_res = alu_eval(dec.alu_op, rf.rdata1, alu_rhs);
+
+  uint32_t alu_res = alu_eval(dec.alu_op, alu_lhs, alu_rhs);
+  uint32_t com_res =  compare(dec.com_op, rf.rdata1, rf.rdata2);
 
   uint32_t mem_rdata = g_mem_read(cpu, alu_res);
   uint32_t mem_rdata_byte = take_bits_range(mem_rdata, 0, 7);
@@ -289,20 +371,20 @@ uint8_t cpu_eval(Gcpu* cpu) {
   uint32_t mem_byte_extend = mem_rdata_byte_sign ? (~0 <<  8) | mem_rdata_byte : mem_rdata_byte;
   uint32_t mem_half_extend = mem_rdata_half_sign ? (~0 << 16) | mem_rdata_half : mem_rdata_half;
 
-  uint32_t reg_wdata = 0;
-  uint8_t reg_wen   = 0;
-  uint8_t mem_wen   = 0;
-  uint8_t pc_jump   = 0;
+  uint8_t pc_jump   = 0; uint8_t mem_wen   = 0; uint8_t reg_wen   = 0; uint32_t reg_wdata = 0;
   switch (dec.inst_type) {
-    case INST_LOAD_BYTE: pc_jump = 0; mem_wen = 0; reg_wen = 1; reg_wdata = mem_byte_extend; break;
-    case INST_LOAD_HALF: pc_jump = 0; mem_wen = 0; reg_wen = 1; reg_wdata = mem_half_extend; break;
-    case INST_LOAD_WORD: pc_jump = 0; mem_wen = 0; reg_wen = 1; reg_wdata = mem_rdata;       break;
-    case INST_UPP:       pc_jump = 0; mem_wen = 0; reg_wen = 1; reg_wdata = dec.imm;         break;
-    case INST_JUMP:      pc_jump = 1; mem_wen = 0; reg_wen = 1; reg_wdata = cpu->pc+4;       break;
-    case INST_REG:       pc_jump = 0; mem_wen = 0; reg_wen = 1; reg_wdata = alu_res;         break;
-    case INST_IMM:       pc_jump = 0; mem_wen = 0; reg_wen = 1; reg_wdata = alu_res;         break;
-    case INST_STORE:     pc_jump = 0; mem_wen = 1; reg_wen = 0; reg_wdata = 0;               break;
-    default:             pc_jump = 0; mem_wen = 0; reg_wen = 0; reg_wdata = 0;               break;
+    case INST_LOAD_BYTE: pc_jump = 0;       mem_wen = 0; reg_wen = 1; reg_wdata = mem_byte_extend; break;
+    case INST_LOAD_HALF: pc_jump = 0;       mem_wen = 0; reg_wen = 1; reg_wdata = mem_half_extend; break;
+    case INST_LOAD_WORD: pc_jump = 0;       mem_wen = 0; reg_wen = 1; reg_wdata = mem_rdata;       break;
+    case INST_UPP:       pc_jump = 0;       mem_wen = 0; reg_wen = 1; reg_wdata = dec.imm;         break;
+    case INST_JUMP:      pc_jump = 1;       mem_wen = 0; reg_wen = 1; reg_wdata = cpu->pc+4;       break;
+    case INST_JUMPR:     pc_jump = 1;       mem_wen = 0; reg_wen = 1; reg_wdata = cpu->pc+4;       break;
+    case INST_AUIPC:     pc_jump = 0;       mem_wen = 0; reg_wen = 1; reg_wdata = alu_res;         break;
+    case INST_REG:       pc_jump = 0;       mem_wen = 0; reg_wen = 1; reg_wdata = alu_res;         break;
+    case INST_IMM:       pc_jump = 0;       mem_wen = 0; reg_wen = 1; reg_wdata = alu_res;         break;
+    case INST_STORE:     pc_jump = 0;       mem_wen = 1; reg_wen = 0; reg_wdata = 0;               break;
+    case INST_BRANCH:    pc_jump = com_res; mem_wen = 0; reg_wen = 0; reg_wdata = 0;               break;
+    default:             pc_jump = 0;       mem_wen = 0; reg_wen = 0; reg_wdata = 0;               break;
   }
 
   rf_write(cpu, reg_wen, dec.reg_dest, reg_wdata);

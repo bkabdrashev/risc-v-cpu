@@ -162,8 +162,8 @@ module cpu (
       INST_STORE_HALF: alu_rhs = imm;
       INST_STORE_WORD: alu_rhs = imm;
       INST_JUMP:       alu_rhs = imm;
-      INST_AUIPC:      alu_rhs = imm;
       INST_JUMPR:      alu_rhs = imm;
+      INST_AUIPC:      alu_rhs = imm;
       INST_BRANCH:     alu_rhs = imm;
       INST_IMM:        alu_rhs = imm;        
       INST_UPP:        alu_rhs = 0;        
@@ -264,8 +264,8 @@ module cpu (
       INST_LOAD_WORD: reg_wdata = lsu_rdata;
       INST_UPP:       reg_wdata = imm;
       INST_JUMP:      reg_wdata = pc_inc;
-      INST_AUIPC:     reg_wdata = alu_res;
       INST_JUMPR:     reg_wdata = pc_inc;
+      INST_AUIPC:     reg_wdata = alu_res;
       INST_REG:       reg_wdata = alu_res;        
       INST_IMM:       reg_wdata = alu_res;        
 
