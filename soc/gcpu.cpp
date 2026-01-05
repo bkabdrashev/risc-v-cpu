@@ -122,7 +122,8 @@ void g_mem_write(Gcpu* cpu, uint8_t wen, uint8_t wbmask, uint32_t addr, uint32_t
 
 uint32_t g_mem_read(Gcpu* cpu, uint32_t addr) {
   uint32_t result = 0;
-  if (addr >= FLASH_START && addr < FLASH_END-3) {
+  if ((addr & 3) == 0 && addr >= FLASH_START && addr < FLASH_END-3) {
+    addr &= ~3;
     addr -= FLASH_START;
     result = 
       cpu->flash[addr+3] << 24 | cpu->flash[addr+2] << 16 |
@@ -153,6 +154,7 @@ uint32_t g_mem_read(Gcpu* cpu, uint32_t addr) {
       byte <<  8 | byte <<  0 ;
   }
   else if (addr >= MEM_START && addr < MEM_END-3) {
+    addr &= ~3;
     addr -= MEM_START;
     result = 
       cpu->mem[addr+3] << 24 | cpu->mem[addr+2] << 16 |
@@ -272,15 +274,14 @@ Dec_out decode(uint32_t inst) {
   else      s_imm = ( 0u << 12) | top_imm | bot_imm;
 
   uint32_t j_imm = 0;
-  if (sign) j_imm = (~0u << 20) | take_bits_range(inst, 12, 19) << 11 | take_bit(inst, 20) << 10 | take_bits_range(inst, 21, 30) << 1 | 0b0;
-  else      j_imm = ( 0u << 20) | take_bits_range(inst, 12, 19) << 11 | take_bit(inst, 20) << 10 | take_bits_range(inst, 21, 30) << 1 | 0b0;
+  if (sign) j_imm = (~0u << 20) | take_bits_range(inst, 12, 19) << 12 | take_bit(inst, 20) << 11 | take_bits_range(inst, 21, 30) << 1 | 0b0;
+  else      j_imm = ( 0u << 20) | take_bits_range(inst, 12, 19) << 12 | take_bit(inst, 20) << 11 | take_bits_range(inst, 21, 30) << 1 | 0b0;
 
   uint32_t b_imm = 0;
   if (sign) b_imm = (~0u << 12) | take_bit(inst, 7) << 11 | take_bits_range(inst, 25, 30) << 5 | take_bits_range(inst, 8, 11) << 1 | 0b0;
   else      b_imm = ( 0u << 12) | take_bit(inst, 7) << 11 | take_bits_range(inst, 25, 30) << 5 | take_bits_range(inst, 8, 11) << 1 | 0b0;
 
-
-
+  out.alu_op = ALU_OP_ADD;
   switch (opcode) {
     case OPCODE_CALC_IMM: {
       out.imm = i_imm;
@@ -289,7 +290,7 @@ Dec_out decode(uint32_t inst) {
     } break;
     case OPCODE_CALC_REG: {
       out.inst_type = INST_REG;
-      out.alu_op = sub << 3 | funct3;
+      out.alu_op = (sub & (funct3==FUNCT3_SR || funct3==FUNCT3_ADD)) << 3 | funct3;
     } break;
     case OPCODE_LOAD: {
       out.imm = i_imm;
@@ -348,10 +349,14 @@ uint8_t cpu_eval(Gcpu* cpu) {
   uint32_t inst = g_mem_read(cpu, cpu->pc);
   Dec_out  dec  = decode(inst);
   RF_out   rf   = rf_read(cpu, dec.reg_src1, dec.reg_src2);
+  bool is_mem_op =
+    dec.inst_type == INST_LOAD_BYTE ||
+    dec.inst_type == INST_LOAD_HALF ||
+    dec.inst_type == INST_LOAD_WORD ||
+    dec.inst_type == INST_STORE ;
 
   uint32_t alu_lhs = 0;
   switch (dec.inst_type) {
-    case INST_REG:       alu_lhs = rf.rdata2; break; 
     case INST_JUMP:      alu_lhs = cpu->pc;   break; 
     case INST_AUIPC:     alu_lhs = cpu->pc;   break; 
     case INST_BRANCH:    alu_lhs = cpu->pc;   break; 
@@ -367,7 +372,7 @@ uint8_t cpu_eval(Gcpu* cpu) {
   uint32_t alu_res = alu_eval(dec.alu_op, alu_lhs, alu_rhs);
   uint32_t com_res =  compare(dec.com_op, rf.rdata1, rf.rdata2);
 
-  uint32_t mem_rdata = g_mem_read(cpu, alu_res);
+  uint32_t mem_rdata = is_mem_op ? g_mem_read(cpu, alu_res) : 0;
   uint32_t mem_rdata_byte = take_bits_range(mem_rdata, 0, 7);
   uint32_t mem_rdata_half = take_bits_range(mem_rdata, 0, 15);
   uint32_t mem_rdata_byte_sign = take_bit(mem_rdata, 7)  && dec.is_mem_sign;

@@ -66,6 +66,7 @@ localparam FUNCT3_WORD        = 3'b010;
 localparam FUNCT3_BYTE_UNSIGN = 3'b100;
 localparam FUNCT3_HALF_UNSIGN = 3'b101;
 localparam FUNCT3_SR          = 3'b101;
+localparam FUNCT3_ADD         = 3'b000;
 localparam FUNCT3_ENV         = 3'b000;
 localparam FUNCT3_CSRRS       = 3'b000;
 

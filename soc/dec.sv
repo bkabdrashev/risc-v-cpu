@@ -55,7 +55,7 @@ module dec (
       end
       OPCODE_CALC_REG: begin
         inst_type = INST_REG;
-        alu_op = {sub,funct3};
+        alu_op = {sub & (funct3==FUNCT3_ADD || funct3 == FUNCT3_SR),funct3};
       end
       OPCODE_LOAD: begin
         imm = i_imm;

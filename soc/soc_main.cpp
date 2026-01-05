@@ -203,7 +203,7 @@ bool compare(TestBench* tb) {
     result &= compare_reg(tb->cycles, name, tb->vcpu->regs[i], tb->gcpu->regs[i]);
   }
   // result &= memcmp(tb->gcpu->flash, tb->vflash, FLASH_SIZE) == 0;
-  // result &= memcmp(tb->gcpu->mem, &tb->vcpu->mem.m_storage[0], MEM_SIZE) == 0;
+  result &= memcmp(tb->gcpu->mem, &tb->vcpu->mem.m_storage[0], MEM_SIZE) == 0;
   if (!result) {
     for (uint32_t i = 0; i < MEM_SIZE; i++) {
       uint32_t v = ((uint8_t*)tb->vcpu->mem.m_storage)[i];
@@ -230,6 +230,8 @@ bool test_instructions(TestBench* tb) {
   }
   bool is_test_success = true;
   while (1) {
+    uint32_t pc = tb->gcpu->pc;
+    uint32_t inst = g_mem_read(tb->gcpu, tb->gcpu->pc);
     if (tb->is_diff) {
       uint8_t ebreak = cpu_eval(tb->gcpu);
       if (ebreak) {
@@ -250,8 +252,6 @@ bool test_instructions(TestBench* tb) {
     }
 
     if (tb->is_diff) {
-      uint32_t pc = tb->gcpu->pc;
-      uint32_t inst = g_mem_read(tb->gcpu, tb->gcpu->pc);
       is_test_success &= compare(tb);
       if (!is_test_success) {
         printf("[%x] pc=0x%08x inst: [0x%x] ", tb->cycles, pc, inst);
@@ -302,7 +302,7 @@ bool test_random(TestBench* tb) {
   bool is_tests_success = true;
   uint64_t tests_passed = 0;
   uint64_t seed = hash_uint64_t(std::time(0));
-  // uint64_t seed = 10253375514896805961lu;
+  // uint64_t seed = 3771247030410912810lu;
   uint64_t i_test = 0;
   do {
     printf("======== SEED:%lu ===== %u/%u =========\n", seed, i_test, tb->max_tests);
@@ -310,8 +310,10 @@ bool test_random(TestBench* tb) {
     std::mt19937 gen(rd());
     gen.seed(seed);
     for (uint32_t i = 0; i < tb->n_insts; i++) {
-      // inst_size_t inst = random_instruction_mem_load_or_store(&gen);
+      // uint32_t inst = random_instruction_mem_load_or_store(&gen);
       uint32_t inst = random_instruction(&gen);
+      // uint32_t inst = random_instruction_no_jump(&gen);
+      // uint32_t inst = random_instruction_no_mem_no_jump(&gen);
       tb->insts[i] = inst;
     }
 
@@ -321,7 +323,7 @@ bool test_random(TestBench* tb) {
       // print_all_instructions(tb);
     }
     else {
-      print_all_instructions(tb);
+      // print_all_instructions(tb);
     }
     seed = hash_uint64_t(seed);
     i_test++;
