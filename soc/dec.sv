@@ -12,7 +12,7 @@ module dec (
   output logic                   is_mem_sign,
   output logic [INST_TYPE_END:0] inst_type);
 /* verilator lint_off UNUSEDPARAM */
-  `include "./soc/defs.vh"
+  `include "defs.vh"
 /* verilator lint_on UNUSEDPARAM */
 
   logic sign; 
@@ -69,6 +69,10 @@ module dec (
         imm = u_imm;
         inst_type = INST_UPP;
       end
+      OPCODE_AUIPC: begin
+        imm = u_imm;
+        inst_type = INST_AUIPC;
+      end
       OPCODE_JAL: begin
         imm = j_imm;
         inst_type = INST_JUMP;
@@ -97,5 +101,5 @@ module dec (
 
   end
 
-endmodule;
+endmodule
 

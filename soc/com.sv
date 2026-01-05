@@ -5,7 +5,7 @@ module com (
   output logic                  res
 );
 /* verilator lint_off UNUSEDPARAM */
-  `include "./soc/defs.vh"
+  `include "defs.vh"
 /* verilator lint_on UNUSEDPARAM */
 
   always_comb begin
@@ -20,5 +20,5 @@ module com (
     endcase
   end
 
-endmodule;
+endmodule
 

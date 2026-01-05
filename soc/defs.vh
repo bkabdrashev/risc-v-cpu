@@ -58,6 +58,7 @@ localparam INST_REG        = 5'b00101;
 localparam INST_UPP        = 5'b00110;
 localparam INST_JUMP       = 5'b00111;
 localparam INST_JUMPR      = 5'b01111;
+localparam INST_AUIPC      = 5'b11111;
 
 localparam FUNCT3_BYTE        = 3'b000;
 localparam FUNCT3_HALF        = 3'b001;

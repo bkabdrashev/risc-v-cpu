@@ -9,7 +9,7 @@ module rf (
   output logic [REG_END_WORD:0] rdata1,
   output logic [REG_END_WORD:0] rdata2);
 /* verilator lint_off UNUSEDPARAM */
-  `include "./soc/defs.vh"
+  `include "defs.vh"
 /* verilator lint_on UNUSEDPARAM */
 
   logic [REG_END_WORD:0] regs [0:N_REGS-1];
@@ -30,6 +30,6 @@ module rf (
     rdata2 = (rs2 == 0 || rs2 >= N_REGS) ? 32'h0 : regs[rs2[3:0]];
   end
 
-endmodule;
+endmodule
 
 

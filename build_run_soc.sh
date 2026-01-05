@@ -3,6 +3,7 @@
 verilator --trace -cc \
   -IysyxSoC/perip/uart16550/rtl \
   -IysyxSoC/perip/spi/rtl \
+  -Isoc \
   $(find ysyxSoC/perip -type f -name '*.v') \
   $(find soc/ -type f -name '*.sv') \
   $(find soc/ -type f -name '*.vh') \

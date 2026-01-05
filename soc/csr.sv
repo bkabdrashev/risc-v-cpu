@@ -3,10 +3,10 @@ module csr (
   input  logic        reset,
   input  logic        wen,
   input  logic [11:0] addr,
-  input  logic [31:0] wdata,
-  output logic [31:0] rdata);
+  input  logic [REG_END_WORD:0] wdata,
+  output logic [REG_END_WORD:0] rdata);
 /* verilator lint_off UNUSEDPARAM */
-  `include "./soc/defs.vh"
+  `include "defs.vh"
 /* verilator lint_on UNUSEDPARAM */
   localparam CYCLE_ADDR     = 12'hB00; 
   localparam CYCLEH_ADDR    = 12'hB80; 
@@ -48,7 +48,5 @@ module csr (
     endcase
   end
 
-endmodule;
-
-
+endmodule
 

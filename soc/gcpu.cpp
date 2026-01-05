@@ -251,7 +251,7 @@ Dec_out decode(uint32_t inst) {
       out.imm = i_imm;
       out.inst_type = INST_JUMP;
     } break;
-    case OPCODE_ENV: {
+    case OPCODE_SYSTEM: {
       out.inst_type = 0;
       out.ebreak = take_bit(inst, 20);
     } break;

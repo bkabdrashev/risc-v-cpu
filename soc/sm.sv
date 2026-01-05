@@ -15,7 +15,7 @@ module sm (
   output logic ifu_reqValid
 );
 /* verilator lint_off UNUSEDPARAM */
-  `include "./soc/defs.vh"
+  `include "defs.vh"
 /* verilator lint_on UNUSEDPARAM */
 
   logic [2:0] state;

@@ -10,6 +10,8 @@ typedef VysyxSoCTop SoC;
 #include <stdint.h>  // uint8_t
 #include <stddef.h>  // size_t
 #include <limits.h>  // SIZE_MAX
+#include <random>
+#include <bitset>
 
 #include "riscv.cpp"
 #include "gcpu.cpp"
@@ -79,6 +81,12 @@ int read_bin_file(const char* path, uint8_t** out_data, size_t* out_size) {
   return 1;
 }
 
+uint64_t hash_uint64_t(uint64_t x) {
+  x *= 0xff51afd7ed558ccd;
+  x ^= x >> 32;
+  return x;
+}
+
 extern void flash_init(uint8_t* data, uint32_t size);
 
 struct TestBenchConfig {
@@ -120,9 +128,15 @@ struct TestBench {
   uint32_t* insts;
 };
 
+bool is_valid_pc_address(uint32_t pc, uint32_t n_insts) {
+  if (FLASH_START <= pc && pc <= 4*n_insts + FLASH_START) return true;
+  if (MEM_START   <= pc && pc <= 4*n_insts + MEM_START)   return true;
+  return false;
+}
+
 void print_all_instructions(TestBench* tb) {
   for (uint32_t i = 0; i < tb->n_insts; i++) {
-    printf("[0x%x], (0x%x)\t", 4*i, tb->insts[i]);
+    printf("[0x%08x] 0x%08x ", 4*i, tb->insts[i]);
     print_instruction(tb->insts[i]);
   }
 }
@@ -206,7 +220,6 @@ bool compare(TestBench* tb) {
 }
 
 bool test_instructions(TestBench* tb) {
-  tb->cycles = 0;
   v_reset(tb);
   g_reset(tb->gcpu);
 
@@ -238,7 +251,7 @@ bool test_instructions(TestBench* tb) {
       }
       is_test_success &= compare(tb);
       if (!is_test_success) {
-        printf("[%x] pc=%x inst: [0x%x] ", tb->cycles, pc, inst);
+        printf("[%x] pc=0x%08x inst: [0x%x] ", tb->cycles, pc, inst);
         print_instruction(inst);
         break;
       }
@@ -251,6 +264,14 @@ bool test_instructions(TestBench* tb) {
     if (tb->max_cycles && tb->cycles >= tb->max_cycles) {
       printf("[FAILED] test is not successful: timeout %u/%u\n", tb->cycles, tb->max_cycles);
       is_test_success=false;
+      break;
+    }
+    if (tb->is_diff && !is_valid_pc_address(tb->gcpu->pc, tb->n_insts)) {
+      if (!is_valid_pc_address(tb->vcpu->pc, tb->n_insts)) {
+        break;
+      }
+    }
+    if (!is_valid_pc_address(tb->vcpu->pc, tb->n_insts)) {
       break;
     }
   }
@@ -272,16 +293,47 @@ bool test_bin(TestBench* tb) {
 }
 
 bool test_random(TestBench* tb) {
+  tb->file_size = tb->n_insts*4;
+  tb->insts = new uint32_t[tb->n_insts];
   bool is_tests_success = true;
-  printf("[TODO] random tests are not implemented\n");
+  uint64_t tests_passed = 0;
+  // uint64_t seed = hash_uint64_t(std::time(0));
+  // uint64_t seed = 10596642213997354837lu; // this seed seems to be good debugging entry
+  uint64_t seed = 12494773341427943734lu; // early jalr
+  uint64_t i_test = 0;
+  do {
+    printf("======== SEED:%lu ===== %u/%u =========\n", seed, i_test, tb->max_tests);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    gen.seed(seed);
+    for (uint32_t i = 0; i < tb->n_insts; i++) {
+      // inst_size_t inst = random_instruction_mem_load_or_store(&gen);
+      uint32_t inst = random_instruction(&gen);
+      tb->insts[i] = inst;
+    }
+
+    is_tests_success &= test_instructions(tb);
+    if (is_tests_success) {
+      tests_passed++;
+      // print_all_instructions(tb);
+    }
+    else {
+      print_all_instructions(tb);
+    }
+    seed = hash_uint64_t(seed);
+    i_test++;
+  } while (is_tests_success && tests_passed < tb->max_tests);
+
+  printf("Tests results: %u / %u have passed\n", tests_passed, tb->max_tests);
   return is_tests_success;
 }
 
 static void usage(const char* prog) {
   fprintf(stderr,
     "Usage:\n"
-    "  %s [trace <path>] [cycles] [max <number>] bin <path>\n",
-    prog 
+    "  %s [diff] [trace <path>] [cycles] [max <cycles>] bin    <path>\n"
+    "  %s [diff] [trace <path>] [cycles] [max <cycles>] random <tests> <n_insts>\n",
+    prog, prog
   );
 }
 

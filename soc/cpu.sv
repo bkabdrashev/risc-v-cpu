@@ -16,7 +16,7 @@ module cpu (
   output [31:0] io_lsu_wdata,
   output [3:0]  io_lsu_wmask);
 /* verilator lint_off UNUSEDPARAM */
-  `include "./soc/defs.vh"
+  `include "defs.vh"
 /* verilator lint_on UNUSEDPARAM */
 
   logic                  ebreak;
@@ -64,8 +64,8 @@ module cpu (
   logic [31:0] lsu_addr;
   logic [1:0]  lsu_size;
 
-  logic [31:0] csr_rdata;
-  logic [31:0] csr_wdata;
+  logic [REG_END_WORD:0] csr_rdata;
+  logic [REG_END_WORD:0] csr_wdata;
   logic        csr_wen;
 
   pc u_pc(
@@ -148,6 +148,7 @@ module cpu (
       INST_CSRRSI: alu_lhs = {27'b0,  rs1};
       INST_CSRRCI: alu_lhs = {27'b1, ~rs1};
       INST_JUMP:   alu_lhs = pc;
+      INST_AUIPC:  alu_lhs = pc;
       INST_BRANCH: alu_lhs = pc;
       default:     alu_lhs = reg_rdata1;
     endcase
@@ -161,6 +162,7 @@ module cpu (
       INST_STORE_HALF: alu_rhs = imm;
       INST_STORE_WORD: alu_rhs = imm;
       INST_JUMP:       alu_rhs = imm;
+      INST_AUIPC:      alu_rhs = imm;
       INST_JUMPR:      alu_rhs = imm;
       INST_BRANCH:     alu_rhs = imm;
       INST_IMM:        alu_rhs = imm;        
@@ -262,6 +264,7 @@ module cpu (
       INST_LOAD_WORD: reg_wdata = lsu_rdata;
       INST_UPP:       reg_wdata = imm;
       INST_JUMP:      reg_wdata = pc_inc;
+      INST_AUIPC:     reg_wdata = alu_res;
       INST_JUMPR:     reg_wdata = pc_inc;
       INST_REG:       reg_wdata = alu_res;        
       INST_IMM:       reg_wdata = alu_res;        
@@ -290,6 +293,6 @@ module cpu (
   assign io_lsu_wmask = lsu_wmask;
   assign io_ifu_addr  = pc;
 
-endmodule;
+endmodule
 
 
