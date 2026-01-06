@@ -27,7 +27,8 @@ module csr (
 
   always_ff @(posedge clock or posedge reset) begin
     if (reset) begin
-      mcycle  <= 64'h0;
+      mcycle   <= 64'h0;
+      minstret <= 64'h0;
     end
     else if (wen) begin
            if (addr == MCYCLE_ADDR)  mcycle <= {mcycle[63:32], wdata};
@@ -37,6 +38,10 @@ module csr (
            if (addr == MINSTRET_ADDR)  minstret <= {minstret[63:32], wdata};
       else if (addr == MINSTRETH_ADDR) minstret <= {wdata, minstret[31: 0]};
       else if (is_done_inst)           minstret <= minstret + 1;
+    end
+    else begin
+      mcycle <= mcycle + 1;
+      if (is_done_inst) minstret <= minstret + 1;
     end
   end
 

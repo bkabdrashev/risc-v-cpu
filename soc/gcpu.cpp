@@ -44,7 +44,7 @@
 #define INST_JUMPR      (0b01111)
 #define INST_AUIPC      (0b11111)
 
-struct Vuart {
+struct Ruart {
   uint8_t&  ier;
   uint8_t&  iir;
   uint8_t&  fcr;
@@ -61,13 +61,15 @@ struct Vuart {
   uint8_t&  lsr7;
 };
 
-struct Vcpu {
+struct Rcpu {
   uint8_t&  ebreak;
   uint32_t& pc;
   uint8_t&  is_done_instruction;
+  uint64_t& mcycle;
+  uint64_t& minstret;
   VlUnpacked<uint32_t, 16>&  regs;
   VlUnpacked<uint16_t, 16777216>& mem;
-  Vuart uart;
+  Ruart uart;
 };
 
 struct Gcpu {
@@ -80,7 +82,7 @@ struct Gcpu {
   uint8_t ebreak;
   bool    is_not_mapped;
 
-  Vuart*  vuart;
+  Ruart*  vuart;
 };
 
 void g_reset(Gcpu* cpu) {

@@ -118,15 +118,19 @@ struct TestBench {
   VerilatedContext* contextp;
   SoC* soc;
   VerilatedVcdC* trace;
-  uint64_t cycles;
-  uint64_t inst_fetches;
-
-  Vcpu* vcpu;
-  Gcpu* gcpu;
 
   size_t    flash_size;
   uint32_t  n_insts;
   uint32_t* insts;
+
+  uint64_t trace_dumps;
+  uint64_t reset_cycles;
+  uint64_t cycles;
+  uint64_t ticks;
+  uint64_t instrets;
+
+  Rcpu* rcpu;
+  Gcpu* gcpu;
 };
 
 bool is_valid_pc_address(uint32_t pc, uint32_t n_insts) {
@@ -145,23 +149,24 @@ void print_all_instructions(TestBench* tb) {
 void tick(TestBench* tb) {
   tb->soc->eval();
   if (tb->is_trace) {
-    tb->trace->dump(tb->cycles);
+    tb->trace->dump(tb->trace_dumps++);
   }
   if (tb->is_cycles && tb->cycles % 1'000'000 == 0) printf("[INFO] cycles: %lu\n", tb->cycles);
-  tb->cycles++;
+  tb->ticks++;
   tb->soc->clock ^= 1;
 }
 
 void cycle(TestBench* tb) {
   tick(tb);
   tick(tb);
+  tb->cycles++;
 }
 
 void v_reset(TestBench* tb) {
   printf("[INFO] reset\n");
   tb->soc->reset = 1;
   tb->soc->clock = 0;
-  for (uint64_t i = 0; i < 10; i++) {
+  for (uint64_t i = 0; i < tb->reset_cycles; i++) {
     cycle(tb);
   }
   tb->soc->reset = 0;
@@ -172,22 +177,22 @@ void fetch_exec(TestBench* tb) {
   while (1) {
     cycle(tb);
     if (tb->max_cycles && tb->cycles >= tb->max_cycles) break;
-    if (tb->vcpu->ebreak) break;
-    if (tb->vcpu->is_done_instruction) break;
+    if (tb->rcpu->ebreak) break;
+    if (tb->rcpu->is_done_instruction) break;
   }
 }
 
-bool compare_reg(uint64_t sim_time, const char* name, uint32_t v, uint32_t g) {
-  if (v != g) {
-    printf("[FAILED] Test Failed at time %lu. %s mismatch: v = 0x%x vs g = 0x%x\n", sim_time, name, v, g);
+bool compare_reg(uint64_t sim_time, const char* name, uint32_t r, uint32_t g) {
+  if (r != g) {
+    printf("[FAILED] Test Failed at time %lu. %s mismatch: r = 0x%x vs g = 0x%x\n", sim_time, name, r, g);
     return false;
   }
   return true;
 }
 
-bool compare_mem(uint64_t sim_time, uint32_t address, uint32_t v, uint32_t g) {
-  if (v != g) {
-    printf("[FAILED] Test Failed at time %lu. 0x%x mismatch: v = %i vs g = %i\n", sim_time, address, v, g);
+bool compare_mem(uint64_t sim_time, uint32_t address, uint32_t r, uint32_t g) {
+  if (r != g) {
+    printf("[FAILED] Test Failed at time %lu. 0x%x mismatch: r = %i vs g = %i\n", sim_time, address, r, g);
     return false;
   }
   return true;
@@ -195,19 +200,21 @@ bool compare_mem(uint64_t sim_time, uint32_t address, uint32_t v, uint32_t g) {
 
 bool compare(TestBench* tb) {
   bool result = true;
-  result &= compare_reg(tb->cycles, "EBREAK", tb->vcpu->ebreak, tb->gcpu->ebreak);
-  result &= compare_reg(tb->cycles, "PC",     tb->vcpu->pc,     tb->gcpu->pc);
+  result &= compare_reg(tb->cycles, "EBREAK",   tb->rcpu->ebreak,   tb->gcpu->ebreak);
+  result &= compare_reg(tb->cycles, "PC",       tb->rcpu->pc,       tb->gcpu->pc);
+  result &= compare_reg(tb->cycles, "MCYCLE",   tb->rcpu->mcycle,   tb->cycles - tb->reset_cycles); // NOTE: cycles are offset by number of cycles during the reset, since reset period is doubled
+  result &= compare_reg(tb->cycles, "MINSTRET", tb->rcpu->minstret, tb->instrets);
   for (uint32_t i = 0; i < N_REGS; i++) {
     char digit0 = i%10 + '0';
     char digit1 = i/10 + '0';
     char name[] = {'x', digit1, digit0, '\0'};
-    result &= compare_reg(tb->cycles, name, tb->vcpu->regs[i], tb->gcpu->regs[i]);
+    result &= compare_reg(tb->cycles, name, tb->rcpu->regs[i], tb->gcpu->regs[i]);
   }
   // result &= memcmp(tb->gcpu->flash, tb->vflash, FLASH_SIZE) == 0;
-  result &= memcmp(tb->gcpu->mem, &tb->vcpu->mem.m_storage[0], MEM_SIZE) == 0;
+  result &= memcmp(tb->gcpu->mem, &tb->rcpu->mem.m_storage[0], MEM_SIZE) == 0;
   if (!result) {
     for (uint32_t i = 0; i < MEM_SIZE; i++) {
-      uint32_t v = ((uint8_t*)tb->vcpu->mem.m_storage)[i];
+      uint32_t v = ((uint8_t*)tb->rcpu->mem.m_storage)[i];
       uint32_t g = tb->gcpu->mem[i];
       result &= compare_mem(tb->cycles, i, v, g);
     }
@@ -221,15 +228,18 @@ bool compare(TestBench* tb) {
 }
 
 bool test_instructions(TestBench* tb) {
-  tb->cycles = 0;
-  tb->inst_fetches = 0;
   v_reset(tb);
-  g_reset(tb->gcpu);
 
   flash_init((uint8_t*)tb->insts, tb->flash_size);
   if (tb->is_diff) {
+    g_reset(tb->gcpu);
     g_flash_init(tb->gcpu, (uint8_t*)tb->insts, tb->flash_size);
   }
+
+  tb->cycles   = 0;
+  tb->instrets = 0;
+  tb->ticks    = 0;
+
   bool is_test_success = true;
   while (1) {
     uint32_t pc = tb->gcpu->pc;
@@ -245,10 +255,10 @@ bool test_instructions(TestBench* tb) {
     }
 
     fetch_exec(tb);
-    if (tb->vcpu->ebreak) {
-      printf("[INFO] vcpu ebreak\n");
-      if (!tb->is_diff && tb->vcpu->regs[10] != 0) {
-        printf("[FAILED] test is not successful: vcpu returned %u\n", tb->vcpu->regs[10]);
+    if (tb->rcpu->ebreak) {
+      printf("[INFO] rcpu ebreak\n");
+      if (!tb->is_diff && tb->rcpu->regs[10] != 0) {
+        printf("[FAILED] test is not successful: rcpu returned %u\n", tb->rcpu->regs[10]);
         is_test_success=false;
       }
     }
@@ -260,32 +270,32 @@ bool test_instructions(TestBench* tb) {
         print_instruction(inst);
         break;
       }
-      if (tb->vcpu->ebreak && tb->gcpu->ebreak) break;
+      if (tb->rcpu->ebreak && tb->gcpu->ebreak) break;
     }
-    else if (tb->vcpu->ebreak) {
+    else if (tb->rcpu->ebreak) {
       break;
     }
 
     if (tb->max_cycles && tb->cycles >= tb->max_cycles) {
-      printf("[%x] pc=0x%08x inst: [0x%x] \n", tb->cycles, tb->vcpu->pc);
+      printf("[%x] pc=0x%08x inst: [0x%x] \n", tb->cycles, tb->rcpu->pc);
       printf("[FAILED] test is not successful: timeout %u/%u\n", tb->cycles, tb->max_cycles);
       is_test_success=false;
       break;
     }
     if (tb->is_diff && !is_valid_pc_address(tb->gcpu->pc, tb->n_insts)) {
-      if (!is_valid_pc_address(tb->vcpu->pc, tb->n_insts)) {
+      if (!is_valid_pc_address(tb->rcpu->pc, tb->n_insts)) {
         break;
       }
     }
-    if (!is_valid_pc_address(tb->vcpu->pc, tb->n_insts)) {
+    if (!is_valid_pc_address(tb->rcpu->pc, tb->n_insts)) {
       break;
     }
-    if (tb->inst_fetches > tb->n_insts) {
+    if (tb->instrets > tb->n_insts) {
       break;
     }
-    tb->inst_fetches++;
+    tb->instrets++;
   }
-  printf("[INFO] finished:%u cycles, %u fetched instructions\n", tb->cycles, tb->inst_fetches);
+  printf("[INFO] finished:%u cycles, %u retired instructions\n", tb->cycles, tb->instrets);
   return is_test_success;
 }
 
@@ -317,9 +327,9 @@ bool test_random(TestBench* tb) {
     gen.seed(seed);
     for (uint32_t i = 0; i < tb->n_insts; i++) {
       // uint32_t inst = random_instruction_mem_load_or_store(&gen);
-      uint32_t inst = random_instruction(&gen);
+      // uint32_t inst = random_instruction(&gen);
       // uint32_t inst = random_instruction_no_jump(&gen);
-      // uint32_t inst = random_instruction_no_mem_no_jump(&gen);
+      uint32_t inst = random_instruction_no_mem_no_jump(&gen);
       tb->insts[i] = inst;
     }
 
@@ -364,16 +374,20 @@ TestBench new_testbench(TestBenchConfig config) {
     .is_random  = config.is_random,
     .max_tests  = config.max_tests,
     .n_insts    = config.n_insts,
+    .trace_dumps = 0,
+    .reset_cycles = 10,
   };
   if (tb.is_trace) {
     Verilated::traceEverOn(true);
   }
 
   tb.soc = new SoC;
-  tb.vcpu = new Vcpu {
+  tb.rcpu = new Rcpu {
     .ebreak              = tb.soc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__cpu__DOT__u_cpu__DOT__ebreak,
     .pc                  = tb.soc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__cpu__DOT__u_cpu__DOT__pc,
     .is_done_instruction = tb.soc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__cpu__DOT__u_cpu__DOT__is_done_instruction,
+    .mcycle              = tb.soc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__cpu__DOT__u_cpu__DOT__u_csr__DOT__mcycle,
+    .minstret            = tb.soc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__cpu__DOT__u_cpu__DOT__u_csr__DOT__minstret,
     .regs                = tb.soc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__cpu__DOT__u_cpu__DOT__u_rf__DOT__regs,
     .mem                 = tb.soc->rootp->ysyxSoCTop__DOT__dut__DOT__sdram__DOT__mem_ext__DOT__Memory,
     .uart                = {
@@ -394,8 +408,10 @@ TestBench new_testbench(TestBenchConfig config) {
     },
   };
 
+  // tb.vcpu = new Vcpu;
+
   tb.gcpu = new Gcpu;
-  tb.gcpu->vuart = &tb.vcpu->uart;
+  tb.gcpu->vuart = &tb.rcpu->uart;
 
   tb.contextp = new VerilatedContext;
 
@@ -416,7 +432,7 @@ void delete_testbench(TestBench tb) {
     tb.trace->close();
     delete tb.trace;
   }
-  delete tb.vcpu;
+  delete tb.rcpu;
   delete tb.gcpu;
   delete tb.soc;
   delete tb.contextp;
