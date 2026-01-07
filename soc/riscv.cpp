@@ -50,6 +50,13 @@
 #define REG_T2 (7)
 #define REG_A0 (10)
 
+#define  InstFlag_Jump   (1 << 0)
+#define  InstFlag_Branch (1 << 1)
+#define  InstFlag_Load   (1 << 2)
+#define  InstFlag_Store  (1 << 3)
+#define  InstFlag_Calc   (1 << 4)
+#define  InstFlag_System (1 << 5)
+
 int32_t sar32(uint32_t u, unsigned shift) {
   assert(shift < 32);
 
@@ -82,6 +89,30 @@ uint32_t take_bits_range(uint32_t bits, uint32_t from, uint32_t to) {
   return (bits & mask) >> from;
 }
 
+uint32_t r_type(uint32_t funct7, uint32_t rs2, uint32_t rs1, uint32_t funct3, uint32_t rd, uint32_t opcode) {
+  uint32_t inst = (funct7 << 24) | (rs2 << 20) | (rs1 << 15) | (funct3 << 12) | (rd << 7) | opcode;
+  return inst;
+}
+
+uint32_t i_type(uint32_t imm, uint32_t rs1, uint32_t funct3, uint32_t rd, uint32_t opcode) {
+  uint32_t inst = (imm << 20) | (rs1 << 15) | (funct3 << 12) | (rd << 7) | opcode;
+  return inst;
+}
+
+uint32_t s_type(uint32_t imm, uint32_t rs2, uint32_t rs1, uint32_t funct3, uint32_t opcode) {
+  uint32_t top_imm = imm >> 5;
+  uint32_t bot_imm = 0b11111 & imm;
+  uint32_t inst = (top_imm << 25) | (rs2 << 20) | (rs1 << 15) | (funct3 << 12) | (bot_imm << 7) | opcode;
+  return inst;
+}
+
+uint32_t b_type(uint32_t imm, uint32_t rs2, uint32_t rs1, uint32_t funct3, uint32_t opcode) {
+  uint32_t top_imm = imm >> 5;
+  uint32_t bot_imm = 0b11111 & imm;
+  uint32_t inst = (top_imm << 25) | (rs2 << 20) | (rs1 << 15) | (funct3 << 12) | (bot_imm << 7) | opcode;
+  return inst;
+}
+
 uint32_t lui(uint32_t imm, uint32_t reg_dest) {
   uint32_t inst_u32 = (imm << 12) | (reg_dest << 7) | OPCODE_LUI;
   return inst_u32;
@@ -98,8 +129,7 @@ uint32_t jal(uint32_t imm, uint32_t reg_dest) {
 }
 
 uint32_t jalr(uint32_t imm, uint32_t reg_src1, uint32_t reg_dest) {
-  uint32_t inst_u32 = (imm << 20) | (reg_src1 << 15) | (FUNCT3_JALR << 12) | (reg_dest << 7) | OPCODE_JALR;
-  return inst_u32;
+  return i_type(imm, reg_src1, FUNCT3_JALR, reg_dest, OPCODE_JALR);
 }
 
 uint32_t branch_store(uint32_t imm, uint32_t reg_src2, uint32_t funct3, uint32_t reg_src1, uint32_t reg_dest, uint32_t opcode) {
@@ -159,31 +189,21 @@ uint32_t lhu(uint32_t imm, uint32_t reg_src1, uint32_t reg_dest) {
 }
 
 uint32_t sb(uint32_t imm, uint32_t reg_src2, uint32_t reg_src1) {
-  uint32_t top_imm = imm >> 5;
-  uint32_t bot_imm = 0b11111 & imm;
-  uint32_t inst_u32 = (top_imm << 25) | (reg_src2 << 20) | (reg_src1 << 15) | (FUNCT3_SB << 12) | (bot_imm << 7) | OPCODE_STORE;
-  return inst_u32;
+  return s_type(imm, reg_src2, reg_src1, FUNCT3_SB, OPCODE_STORE);
 }
 
 uint32_t sh(uint32_t imm, uint32_t reg_src2, uint32_t reg_src1) {
-  uint32_t top_imm = imm >> 5;
-  uint32_t bot_imm = 0b11111 & imm;
-  uint32_t inst_u32 = (top_imm << 25) | (reg_src2 << 20) | (reg_src1 << 15) | (FUNCT3_SH << 12) | (bot_imm << 7) | OPCODE_STORE;
-  return inst_u32;
+  return s_type(imm, reg_src2, reg_src1, FUNCT3_SH, OPCODE_STORE);
 }
 
 uint32_t sw(uint32_t imm, uint32_t reg_src2, uint32_t reg_src1) {
-  uint32_t top_imm = imm >> 5;
-  uint32_t bot_imm = 0b11111 & imm;
-  uint32_t inst_u32 = (top_imm << 25) | (reg_src2 << 20) | (reg_src1 << 15) | (FUNCT3_SW << 12) | (bot_imm << 7) | OPCODE_STORE;
-  return inst_u32;
+  return s_type(imm, reg_src2, reg_src1, FUNCT3_SW, OPCODE_STORE);
 }
 
 uint32_t addi(uint32_t imm, uint32_t reg_src1, uint32_t reg_dest) {
   uint32_t inst_u32 = (imm << 20) | (reg_src1 << 15) | (FUNCT3_ADD << 12) | (reg_dest << 7) | OPCODE_CALC_IMM;
   return inst_u32;
 }
-
 uint32_t slti(uint32_t imm, uint32_t reg_src1, uint32_t reg_dest) {
   uint32_t inst_u32 = (imm << 20) | (reg_src1 << 15) | (FUNCT3_SLT << 12) | (reg_dest << 7) | OPCODE_CALC_IMM;
   return inst_u32;
@@ -422,7 +442,6 @@ void print_instruction(uint32_t inst) {
 
 uint32_t random_range(std::mt19937* gen, uint32_t ge, uint32_t lt) {
   std::uniform_int_distribution<uint32_t> dist(0, (1U << lt) - 1);
-
   return dist(*gen) % lt + ge;
 }
 
@@ -431,552 +450,100 @@ uint32_t random_bits(std::mt19937* gen, uint32_t n) {
   return dist(*gen);
 }
 
-uint32_t random_instruction(std::mt19937* gen) {
-  uint32_t inst_id = random_range(gen, 0, 38);
-  uint32_t inst = {};
-  switch (inst_id) {
-    case 0: { // LUI
+uint32_t random_instruction(std::mt19937* gen, uint32_t flags) {
+  uint32_t opcodes[16] = {};
+  uint32_t opcode_count = 0;
+  if (flags & InstFlag_Store) {
+    opcodes[opcode_count++] = OPCODE_STORE;
+  }
+  if (flags & InstFlag_Load) {
+    opcodes[opcode_count++] = OPCODE_LOAD;
+  }
+  if (flags & InstFlag_Calc) {
+    opcodes[opcode_count++] = OPCODE_LUI;
+    opcodes[opcode_count++] = OPCODE_AUIPC;
+    opcodes[opcode_count++] = OPCODE_CALC_IMM;
+    opcodes[opcode_count++] = OPCODE_CALC_REG;
+  }
+  if (flags & InstFlag_Jump) {
+    opcodes[opcode_count++] = OPCODE_JAL;
+    opcodes[opcode_count++] = OPCODE_JALR;
+  }
+  if (flags & InstFlag_Branch) {
+    opcodes[opcode_count++] = OPCODE_BRANCH;
+  }
+  if (flags & InstFlag_System) {
+    opcodes[opcode_count++] = OPCODE_SYSTEM;
+  }
+  assert(opcode_count < 16);
+  uint32_t opcode_id = random_range(gen, 0, opcode_count);
+  uint32_t opcode = opcodes[opcode_id];
+
+  uint32_t inst = 0;
+  switch (opcode) {
+    case OPCODE_LUI: {
       uint32_t imm = random_bits(gen, 20);
       uint32_t rd  = random_bits(gen, 4);
       inst = lui(imm, rd);
     } break;
-    case 1: { // AUIPC
+    case OPCODE_AUIPC: {
       uint32_t imm = random_bits(gen, 20);
       uint32_t rd  = random_bits(gen, 4);
       inst = auipc(imm, rd);
     } break;
-    case 2: { // JAL
+    case OPCODE_JAL: {
       uint32_t imm = random_bits(gen, 20);
       uint32_t rd  = random_bits(gen, 4);
       inst = jal(imm, rd);
     } break;
-    case 3: { // JALR
+    case OPCODE_JALR: {
       uint32_t imm = random_bits(gen, 12);
       uint32_t rs1 = random_bits(gen, 4);
       uint32_t rd  = random_bits(gen, 4);
       inst = jalr(imm, rs1, rd);
     } break;
-    case 4: { // BEQ
+    case OPCODE_BRANCH: {
       uint32_t imm = random_bits(gen, 12);
       uint32_t rs2 = random_bits(gen, 4);
       uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = beq(imm, rs2, rs1, rd);
+      uint32_t branch_types[6] = { FUNCT3_BEQ, FUNCT3_BNE, FUNCT3_BLT, FUNCT3_BGE, FUNCT3_BLTU, FUNCT3_BGEU };
+      uint32_t funct3 = branch_types[random_range(gen, 0, 5)];
+      inst = b_type(imm, rs2, rs1, funct3, opcode);
     } break;
-    case 5: { // bne
+    case OPCODE_LOAD: {
+      uint32_t imm = random_bits(gen, 12);
+      uint32_t rs1 = random_bits(gen, 4);
+      uint32_t rd  = random_bits(gen, 4);
+      uint32_t load_types[5] = { FUNCT3_LB, FUNCT3_LH, FUNCT3_LW, FUNCT3_LBU, FUNCT3_LHU };
+      uint32_t funct3 = load_types[random_range(gen, 0, 5)];
+      inst = i_type(imm, rs1, funct3, rd, opcode);
+    } break;
+    case OPCODE_STORE: {
       uint32_t imm = random_bits(gen, 12);
       uint32_t rs2 = random_bits(gen, 4);
       uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = bne(imm, rs2, rs1, rd);
+      uint32_t store_types[3] = { FUNCT3_SB, FUNCT3_SH, FUNCT3_SW };
+      uint32_t funct3 = store_types[random_range(gen, 0, 3)];
+      inst = s_type(imm, rs2, rs1, funct3, opcode);
     } break;
-    case 6: { // blt
+    case OPCODE_CALC_IMM: {
       uint32_t imm = random_bits(gen, 12);
+      uint32_t rs1 = random_bits(gen, 4);
+      uint32_t funct3 = random_bits(gen, 3);
+      uint32_t rd  = random_bits(gen, 4);
+      inst = i_type(imm, rs1, funct3, rd, opcode);
+    } break;
+    case OPCODE_CALC_REG: {
       uint32_t rs2 = random_bits(gen, 4);
       uint32_t rs1 = random_bits(gen, 4);
+      uint32_t funct7 = random_bits(gen, 1) << 6;
+      uint32_t funct3 = random_bits(gen, 3);
       uint32_t rd  = random_bits(gen, 4);
-      inst = blt(imm, rs2, rs1, rd);
+      inst = r_type(funct7, rs2, rs1, funct3, rd, opcode);
     } break;
-    case 7: { // bge
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = bge(imm, rs2, rs1, rd);
-    } break;
-    case 8: { // bltu
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = bltu(imm, rs2, rs1, rd);
-    } break;
-    case 9: { // bgeu
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = bgeu(imm, rs2, rs1, rd);
-    } break;
-    case 10: { // LB
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = lb(imm, rs1, rd);
-    } break;
-    case 11: { // lh
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = lh(imm, rs1, rd);
-    } break;
-    case 12: { // LW
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = lw(imm, rs1, rd);
-    } break;
-    case 13: { // LBU
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = lbu(imm, rs1, rd);
-    } break;
-    case 14: { // LHU
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = lhu(imm, rs1, rd);
-    } break;
-    case 15: { // SB
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1  = random_bits(gen, 4);
-      inst = sb(imm, rs2, rs1);
-    } break;
-
-    case 16: { // SH
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1  = random_bits(gen, 4);
-      inst = sh(imm, rs2, rs1);
-    } break;
-    case 17: { // SW
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1  = random_bits(gen, 4);
-      inst = sw(imm, rs2, rs1);
-    } break;
-    case 18:{ // ADDI
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = addi(imm, rs1, rd);
-    } break;
-    case 19: { // sltI
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = slti(imm, rs1, rd);
-    } break;
-    case 20: { // sltiu
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = sltiu(imm, rs1, rd);
-    } break;
-    case 21: { // xori
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = xori(imm, rs1, rd);
-    } break;
-    case 22: { // ori
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = ori(imm, rs1, rd);
-    } break;
-    case 23: { // andi
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = andi(imm, rs1, rd);
-    } break;
-    case 24: {
-      uint32_t imm = random_bits(gen, 5);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = slli(imm, rs1, rd);
-    } break;
-    case 25: {
-      uint32_t imm = random_bits(gen, 5);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = srli(imm, rs1, rd);
-    } break;
-    case 26: {
-      uint32_t imm = random_bits(gen, 5);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = srai(imm, rs1, rd);
-    } break;
-    case 27: { // ADD
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = add(rs2, rs1, rd);
-    } break;
-    case 28: { // sub
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = sub(rs2, rs1, rd);
-    } break;
-    case 29: { // sll
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = sll(rs2, rs1, rd);
-    } break;
-    case 30: { // slt
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = slt(rs2, rs1, rd);
-    } break;
-    case 31: { // sltu
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = sltu(rs2, rs1, rd);
-    } break;
-    case 32: { // xor
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = vxor(rs2, rs1, rd);
-    } break;
-    case 33: { // srl
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = srl(rs2, rs1, rd);
-    } break;
-    case 34: { // sra
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = sra(rs2, rs1, rd);
-    } break;
-    case 35: {
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = vor(rs2, rs1, rd);
-    } break;
-    case 36: {
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = vand(rs2, rs1, rd);
-    } break;
-    case 37: { // EBREAK
+    case OPCODE_SYSTEM: {
       inst = ebreak();
     } break;
   }
   return inst;
 }
-
-uint32_t random_instruction_no_jump(std::mt19937* gen) {
-  uint32_t inst_id = random_range(gen, 0, 29);
-  uint32_t inst = {};
-  switch (inst_id) {
-    case 0: { // LUI
-      uint32_t imm = random_bits(gen, 20);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = lui(imm, rd);
-    } break;
-    case 1: { // AUIPC
-      uint32_t imm = random_bits(gen, 20);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = auipc(imm, rd);
-    } break;
-    case 2: { // LB
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = lb(imm, rs1, rd);
-    } break;
-    case 3: { // lh
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = lh(imm, rs1, rd);
-    } break;
-    case 4: { // LW
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = lw(imm, rs1, rd);
-    } break;
-    case 5: { // LBU
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = lbu(imm, rs1, rd);
-    } break;
-    case 6: { // LHU
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = lhu(imm, rs1, rd);
-    } break;
-    case 7: { // SB
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1  = random_bits(gen, 4);
-      inst = sb(imm, rs2, rs1);
-    } break;
-    case 8: { // SH
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1  = random_bits(gen, 4);
-      inst = sh(imm, rs2, rs1);
-    } break;
-    case 9: { // SW
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1  = random_bits(gen, 4);
-      inst = sw(imm, rs2, rs1);
-    } break;
-    case 10:{ // ADDI
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = addi(imm, rs1, rd);
-    } break;
-    case 11: { // sltI
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = slti(imm, rs1, rd);
-    } break;
-    case 12: { // sltiu
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = sltiu(imm, rs1, rd);
-    } break;
-    case 13: { // xori
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = xori(imm, rs1, rd);
-    } break;
-    case 14: { // ori
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = ori(imm, rs1, rd);
-    } break;
-    case 15: { // andi
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = andi(imm, rs1, rd);
-    } break;
-    case 16: {
-      uint32_t imm = random_bits(gen, 5);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = slli(imm, rs1, rd);
-    } break;
-    case 17: {
-      uint32_t imm = random_bits(gen, 5);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = srli(imm, rs1, rd);
-    } break;
-    case 18: {
-      uint32_t imm = random_bits(gen, 5);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = srai(imm, rs1, rd);
-    } break;
-    case 19: { // ADD
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = add(rs2, rs1, rd);
-    } break;
-    case 20: { // sub
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = sub(rs2, rs1, rd);
-    } break;
-    case 21: { // sll
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = sll(rs2, rs1, rd);
-    } break;
-    case 22: { // slt
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = slt(rs2, rs1, rd);
-    } break;
-    case 23: { // sltu
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = sltu(rs2, rs1, rd);
-    } break;
-    case 24: { // xor
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = vxor(rs2, rs1, rd);
-    } break;
-    case 25: { // srl
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = srl(rs2, rs1, rd);
-    } break;
-    case 26: { // sra
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = sra(rs2, rs1, rd);
-    } break;
-    case 27: {
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = vor(rs2, rs1, rd);
-    } break;
-    case 28: {
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = vand(rs2, rs1, rd);
-    } break;
-  }
-  return inst;
-}
-
-uint32_t random_instruction_no_mem_no_jump(std::mt19937* gen) {
-  uint32_t inst_id = random_range(gen, 0, 21);
-  uint32_t inst = {};
-  switch (inst_id) {
-    case 0: { // LUI
-      uint32_t imm = random_bits(gen, 20);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = lui(imm, rd);
-    } break;
-    case 1: { // AUIPC
-      uint32_t imm = random_bits(gen, 20);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = auipc(imm, rd);
-    } break;
-    case 2:{ // ADDI
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = addi(imm, rs1, rd);
-    } break;
-    case 3: { // sltI
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = slti(imm, rs1, rd);
-    } break;
-    case 4: { // sltiu
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = sltiu(imm, rs1, rd);
-    } break;
-    case 5: { // xori
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = xori(imm, rs1, rd);
-    } break;
-    case 6: { // ori
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = ori(imm, rs1, rd);
-    } break;
-    case 7: { // andi
-      uint32_t imm = random_bits(gen, 12);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = andi(imm, rs1, rd);
-    } break;
-    case 8: {
-      uint32_t imm = random_bits(gen, 5);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = slli(imm, rs1, rd);
-    } break;
-    case 9: {
-      uint32_t imm = random_bits(gen, 5);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = srli(imm, rs1, rd);
-    } break;
-    case 10: {
-      uint32_t imm = random_bits(gen, 5);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = srai(imm, rs1, rd);
-    } break;
-    case 11: { // ADD
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = add(rs2, rs1, rd);
-    } break;
-    case 12: { // sub
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = sub(rs2, rs1, rd);
-    } break;
-    case 13: { // sll
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = sll(rs2, rs1, rd);
-    } break;
-    case 14: { // slt
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = slt(rs2, rs1, rd);
-    } break;
-    case 15: { // sltu
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = sltu(rs2, rs1, rd);
-    } break;
-    case 16: { // xor
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = vxor(rs2, rs1, rd);
-    } break;
-    case 17: { // srl
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = srl(rs2, rs1, rd);
-    } break;
-    case 18: { // sra
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = sra(rs2, rs1, rd);
-    } break;
-    case 19: {
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = vor(rs2, rs1, rd);
-    } break;
-    case 20: {
-      uint32_t rs2 = random_bits(gen, 4);
-      uint32_t rs1 = random_bits(gen, 4);
-      uint32_t rd  = random_bits(gen, 4);
-      inst = vand(rs2, rs1, rd);
-    } break;
-  }
-  return inst;
-}
-

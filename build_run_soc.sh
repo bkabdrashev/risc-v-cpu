@@ -25,7 +25,7 @@ verilator --trace -cc \
 make -C obj_cpu -f Vcpu.mk libVcpu.a
 make -C obj_soc -f VysyxSoCTop.mk libVysyxSoCTop.a libverilated.a
 
-g++ -std=c++17 \
+g++ -std=c++17 -g \
   -Iobj_cpu -Iobj_soc \
   -I$VERILATOR_ROOT/include \
   -I"$VERILATOR_ROOT/include/vltstd" \

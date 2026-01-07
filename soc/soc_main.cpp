@@ -43,6 +43,7 @@ struct TestBenchConfig {
   bool is_vcpu        = false;
   bool is_gold        = false;
   bool is_random      = false;
+  uint32_t inst_flags = false;
   bool is_memcmp      = false;
   bool is_check       = false;
   uint32_t seed       = 0;
@@ -63,6 +64,7 @@ struct TestBench {
   bool is_vcpu;
   bool is_gold;
   bool is_random;
+  uint32_t inst_flags;
   bool is_memcmp;
   bool is_check;
   uint32_t seed;
@@ -90,6 +92,106 @@ struct TestBench {
   Vcpu* vcpu;
   Gcpu* gcpu;
 };
+
+
+TestBench new_testbench(TestBenchConfig config) {
+  TestBench tb = {
+    .is_trace   = config.is_trace,
+    .trace_file = config.trace_file,
+    .is_cycles  = config.is_cycles,
+    .is_bin     = config.is_bin,
+    .bin_file   = config.bin_file,
+    .max_cycles = config.max_cycles,
+
+    .is_vsoc    = config.is_vsoc,
+    .is_vcpu    = config.is_vcpu,
+    .is_gold    = config.is_gold,
+
+    .is_random  = config.is_random,
+    .inst_flags  = config.inst_flags,
+    .is_memcmp  = config.is_memcmp,
+    .is_check   = config.is_check,
+    .seed       = config.seed,
+    .max_tests  = config.max_tests,
+    .n_insts    = config.n_insts,
+    .trace_dumps = 0,
+    .reset_cycles = 10,
+  };
+  if (tb.is_trace) {
+    Verilated::traceEverOn(true);
+  }
+
+  tb.vsoc = new VSoC;
+  tb.vsoc_cpu = new VSoCcpu{
+    .ebreak              = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__cpu__DOT__u_cpu__DOT__ebreak,
+    .pc                  = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__cpu__DOT__u_cpu__DOT__pc,
+    .is_done_instruction = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__cpu__DOT__u_cpu__DOT__is_done_instruction,
+    .mcycle              = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__cpu__DOT__u_cpu__DOT__u_csr__DOT__mcycle,
+    .minstret            = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__cpu__DOT__u_cpu__DOT__u_csr__DOT__minstret,
+    .regs                = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__cpu__DOT__u_cpu__DOT__u_rf__DOT__regs,
+    .mem                 = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__sdram__DOT__mem_ext__DOT__Memory,
+    .uart                = {
+      .ier = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__ier,
+      .iir = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__iir,
+      .fcr = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__fcr,
+      .mcr = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__mcr,
+      .msr = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__msr,
+      .lcr = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__lcr,
+      .lsr0 = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__lsr0r,
+      .lsr1 = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__lsr1r,
+      .lsr2 = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__lsr2r,
+      .lsr3 = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__lsr3r,
+      .lsr4 = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__lsr4r,
+      .lsr5 = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__lsr5r,
+      .lsr6 = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__lsr6r,
+      .lsr7 = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__lsr7r,
+    },
+  };
+
+  tb.vcpu = new Vcpu;
+  tb.vcpu_cpu = new Vcpucpu {
+    .ebreak              = tb.vcpu->rootp->cpu__DOT__ebreak,
+    .pc                  = tb.vcpu->rootp->cpu__DOT__pc,
+    .is_done_instruction = tb.vcpu->rootp->cpu__DOT__is_done_instruction,
+    .mcycle              = tb.vcpu->rootp->cpu__DOT__u_csr__DOT__mcycle,
+    .minstret            = tb.vcpu->rootp->cpu__DOT__u_csr__DOT__minstret,
+    .regs                = tb.vcpu->rootp->cpu__DOT__u_rf__DOT__regs,
+  };
+
+  tb.gcpu = new Gcpu;
+  tb.gcpu->vsoc_uart = &tb.vsoc_cpu->uart;
+
+  tb.contextp = new VerilatedContext;
+
+  if (tb.is_trace) {
+    Verilated::traceEverOn(true);
+    tb.trace = new VerilatedVcdC;
+    if (tb.is_vsoc) {
+      tb.vsoc->trace(tb.trace, 5);
+    }
+    if (tb.is_vcpu) {
+      tb.vcpu->trace(tb.trace, 5);
+    }
+    tb.trace->open(tb.trace_file);
+  }
+  return tb;
+}
+
+void delete_testbench(TestBench tb) {
+  if (tb.n_insts) {
+    free(tb.insts);
+  }
+  if (tb.is_trace) {
+    tb.trace->close();
+    delete tb.trace;
+  }
+  delete tb.vsoc_cpu;
+  delete tb.gcpu;
+  delete tb.vsoc;
+  delete tb.contextp;
+}
+
+
 
 int read_bin_file(const char* path, uint8_t** out_data, size_t* out_size) {
   if (!out_data || !out_size) return 0;
@@ -619,13 +721,13 @@ bool test_random(TestBench* tb) {
     std::mt19937 gen(rd());
     gen.seed(seed);
     for (uint32_t i = 0; i < tb->n_insts; i++) {
-      uint32_t inst = random_instruction(&gen);
+      uint32_t inst = random_instruction(&gen, tb->inst_flags);
       // uint32_t inst = random_instruction_no_jump(&gen);
       // uint32_t inst = random_instruction_no_mem_no_jump(&gen);
       tb->insts[i] = inst;
     }
 
-    print_all_instructions(tb);
+    // print_all_instructions(tb);
     is_tests_success &= test_instructions(tb);
     if (is_tests_success) {
       tests_passed++;
@@ -645,7 +747,7 @@ static void usage(const char* prog) {
   fprintf(stderr,
     "Usage:\n"
     "  %s vsoc|vcpu|gold [trace <path>] [cycles] [memcmp] [check] [timeout <cycles>] [seed <number>] bin    <path>\n"
-    "  %s vsoc|vcpu|gold [trace <path>] [cycles] [memcmp] [check] [timeout <cycles>] [seed <number>] random <tests> <n_insts>\n"
+    "  %s vsoc|vcpu|gold [trace <path>] [cycles] [memcmp] [check] [timeout <cycles>] [seed <number>] random <tests> <n_insts> <JBLSCE | all>\n"
     "    vsoc|vcpu|gold     : select at least one to run: vsoc -- verilated SoC, vcpu -- verilated CPU, gold -- Golden Model\n"
     "    [trace <path>]     : saves the trace of the run at <path> (only for vcpu and vsoc)\n"
     "    [cycles]           : shows every 1'000'000 cycles\n"
@@ -653,7 +755,8 @@ static void usage(const char* prog) {
     "    [check]            : on ebreak check a0 == 0, otherwise test failed\n"
     "    [timeout <cycles>] : timeout after <cycles> cycles\n"
     "    [seed <number>]    : set initial seed to <number>\n"
-    "    random <tests> <n_insts> : <tests> times random tests with <n_insts> instructions; conflicts with bin \n"
+    "    random <tests> <n_insts> <JBLSCE | all>: <tests> times random tests with <n_insts> <JBLSCE | all> instructions; conflicts with bin \n"
+    "      J -- jumps, B -- branches, L -- loads, S -- store, C -- calc, E -- system\n"
     "    bin <path>               : loads the bin file to flash and runs it; conflicts with random \n",
     prog, prog
   );
@@ -662,103 +765,6 @@ static void usage(const char* prog) {
 static int streq(const char* a, const char* b) {
   return a && b && strcmp(a, b) == 0;
 }
-
-TestBench new_testbench(TestBenchConfig config) {
-  TestBench tb = {
-    .is_trace   = config.is_trace,
-    .trace_file = config.trace_file,
-    .is_cycles  = config.is_cycles,
-    .is_bin     = config.is_bin,
-    .bin_file   = config.bin_file,
-    .max_cycles = config.max_cycles,
-
-    .is_vsoc    = config.is_vsoc,
-    .is_vcpu    = config.is_vcpu,
-    .is_gold    = config.is_gold,
-
-    .is_random  = config.is_random,
-    .is_memcmp  = config.is_memcmp,
-    .is_check   = config.is_check,
-    .seed       = config.seed,
-    .max_tests  = config.max_tests,
-    .n_insts    = config.n_insts,
-    .trace_dumps = 0,
-    .reset_cycles = 10,
-  };
-  if (tb.is_trace) {
-    Verilated::traceEverOn(true);
-  }
-
-  tb.vsoc = new VSoC;
-  tb.vsoc_cpu = new VSoCcpu{
-    .ebreak              = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__cpu__DOT__u_cpu__DOT__ebreak,
-    .pc                  = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__cpu__DOT__u_cpu__DOT__pc,
-    .is_done_instruction = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__cpu__DOT__u_cpu__DOT__is_done_instruction,
-    .mcycle              = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__cpu__DOT__u_cpu__DOT__u_csr__DOT__mcycle,
-    .minstret            = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__cpu__DOT__u_cpu__DOT__u_csr__DOT__minstret,
-    .regs                = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__cpu__DOT__u_cpu__DOT__u_rf__DOT__regs,
-    .mem                 = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__sdram__DOT__mem_ext__DOT__Memory,
-    .uart                = {
-      .ier = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__ier,
-      .iir = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__iir,
-      .fcr = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__fcr,
-      .mcr = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__mcr,
-      .msr = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__msr,
-      .lcr = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__lcr,
-      .lsr0 = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__lsr0r,
-      .lsr1 = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__lsr1r,
-      .lsr2 = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__lsr2r,
-      .lsr3 = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__lsr3r,
-      .lsr4 = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__lsr4r,
-      .lsr5 = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__lsr5r,
-      .lsr6 = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__lsr6r,
-      .lsr7 = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__lsr7r,
-    },
-  };
-
-  tb.vcpu = new Vcpu;
-  tb.vcpu_cpu = new Vcpucpu {
-    .ebreak              = tb.vcpu->rootp->cpu__DOT__ebreak,
-    .pc                  = tb.vcpu->rootp->cpu__DOT__pc,
-    .is_done_instruction = tb.vcpu->rootp->cpu__DOT__is_done_instruction,
-    .mcycle              = tb.vcpu->rootp->cpu__DOT__u_csr__DOT__mcycle,
-    .minstret            = tb.vcpu->rootp->cpu__DOT__u_csr__DOT__minstret,
-    .regs                = tb.vcpu->rootp->cpu__DOT__u_rf__DOT__regs,
-  };
-
-  tb.gcpu = new Gcpu;
-  tb.gcpu->vsoc_uart = &tb.vsoc_cpu->uart;
-
-  tb.contextp = new VerilatedContext;
-
-  if (tb.is_trace) {
-    Verilated::traceEverOn(true);
-    tb.trace = new VerilatedVcdC;
-    if (tb.is_vsoc) {
-      tb.vsoc->trace(tb.trace, 5);
-    }
-    if (tb.is_vcpu) {
-      tb.vcpu->trace(tb.trace, 5);
-    }
-    tb.trace->open(tb.trace_file);
-  }
-  return tb;
-}
-
-void delete_testbench(TestBench tb) {
-  if (tb.n_insts) {
-    free(tb.insts);
-  }
-  if (tb.is_trace) {
-    tb.trace->close();
-    delete tb.trace;
-  }
-  delete tb.vsoc_cpu;
-  delete tb.gcpu;
-  delete tb.vsoc;
-  delete tb.contextp;
-}
-
 int main(int argc, char** argv, char** env) {
   int exit_code = EXIT_SUCCESS;
 
@@ -843,8 +849,8 @@ int main(int argc, char** argv, char** env) {
           exit_code = EXIT_FAILURE;
           goto exit_label;
         }
-        if (curr_arg+1 >= argc) {
-          fprintf(stderr, "[ERROR]: 'random' requires a <number> <number>\n");
+        if (curr_arg+2 >= argc) {
+          fprintf(stderr, "[ERROR]: 'random' requires a <number> <number> <JBLSCE*>\n");
           usage(argv[0]);
           exit_code = EXIT_FAILURE;
           goto exit_label;
@@ -852,6 +858,27 @@ int main(int argc, char** argv, char** env) {
         config.is_random = true;
         config.max_tests = std::stoull(argv[curr_arg++]);
         config.n_insts   = std::stoi(argv[curr_arg++]);
+        config.inst_flags = 0;
+        const char* flags = argv[curr_arg++];
+        size_t len = strlen(flags);
+        if (streq(flags, "all")) {
+          config.inst_flags |= 0b111111;
+        }
+        else for (uint32_t i = 0; i < len; i++) {
+          switch (flags[i] | (1 << 5)) {
+            case 'j': config.inst_flags |= InstFlag_Jump;   break;
+            case 'b': config.inst_flags |= InstFlag_Branch; break;
+            case 'l': config.inst_flags |= InstFlag_Load;   break;
+            case 's': config.inst_flags |= InstFlag_Store;  break;
+            case 'c': config.inst_flags |= InstFlag_Calc;   break;
+            case 'e': config.inst_flags |= InstFlag_System; break;
+            default:
+              fprintf(stderr, "[ERROR]: unknown flag '%c'\n", flags[i]);
+              usage(argv[0]);
+              exit_code = EXIT_FAILURE;
+              goto exit_label;
+          }
+        }
       }
       else if (streq(mode, "bin")) {
         if (config.is_bin) {
