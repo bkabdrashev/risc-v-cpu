@@ -150,7 +150,6 @@ module cpu (
   assign is_lsu      = inst_type[4] & is_inst_ready;
   assign io_lsu_wen  = inst_type[5:3] == INST_STORE;
   assign io_lsu_size = inst_type[1:0];
-  assign io_lsu_addr = alu_res;
 
   lsu u_lsu(
     .clock(clock),
@@ -160,7 +159,7 @@ module cpu (
     .is_busy    (is_lsu_busy),
     .rdata      (io_lsu_rdata),
     .wdata      (reg_rdata2),
-    .addr       (alu_res[1:0]),
+    .addr       (alu_res),
     .data_size  (inst_type[1:0]),
     .is_mem_sign(inst_type[2]),
 
@@ -169,6 +168,7 @@ module cpu (
     .reqValid     (io_lsu_reqValid),
     .lsu_wdata    (io_lsu_wdata),
     .lsu_rdata    (lsu_rdata),
+    .lsu_addr     (io_lsu_addr),
     .lsu_wmask    (io_lsu_wmask));
 
   always_ff @(posedge clock or posedge reset) begin
