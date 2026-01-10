@@ -1,12 +1,14 @@
 # --build --runtime-debug -CFLAGS "-g3 -O0 -fno-omit-frame-pointer" -LDFLAGS "-g" \
 export VERILATOR_ROOT=/usr/share/verilator
+RTL_ROOT=/home/bekzat/chip_bootcamp/
 
 DBG_CFLAGS="-g3 -O0 -fno-omit-frame-pointer"
 DBG_LDFLAGS="-g"
 
+cd $RTL_ROOT
 verilator --trace -cc \
   -Wall \
-  -Isoc \
+  -I$RTL_ROOT/soc \
   soc/cpu.sv \
   soc/rf.sv soc/pc.sv soc/exu.sv soc/idu.sv soc/alu.sv soc/csr.sv soc/com.sv \
   soc/reg_defines.vh soc/com_defines.vh soc/alu_defines.vh soc/inst_defines.vh \
@@ -28,12 +30,8 @@ verilator --trace -cc \
   --Mdir obj_soc \
 && \
 make -C obj_cpu -f Vcpu.mk libVcpu.a \
-  OPT_FAST="-O0 -g3 -fno-omit-frame-pointer" \
-  OPT_SLOW="-O0 -g3 -fno-omit-frame-pointer" \
 && \
 make -C obj_soc -f VysyxSoCTop.mk libVysyxSoCTop.a \
-  OPT_FAST="-O0 -g3 -fno-omit-frame-pointer" \
-  OPT_SLOW="-O0 -g3 -fno-omit-frame-pointer" \
 && \
 g++ -std=c++17 -g \
   -Iobj_cpu -Iobj_soc \
@@ -44,4 +42,5 @@ g++ -std=c++17 -g \
   libverilated.a \
   -o bin/testbench \
 && \
-./bin/testbench "$@"
+cd -
+$RTL_ROOT/bin/testbench "$@"

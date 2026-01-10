@@ -454,12 +454,14 @@ BreakCode vcpu_subtick(TestBench* tb) {
 
   if (tb->vcpu_cpu->io_ifu_reqValid) {
     tb->vcpu_cpu->io_ifu_reqValid = 0;
+    // BUG: doesn't work with wait == 1
     vcpu_wait_ticks(tb, 4);
     tb->vcpu->io_ifu_respValid = 1;
     tb->vcpu->io_ifu_rdata = v_mem_read(tb, tb->vcpu->io_ifu_addr);
   }
   else if (tb->vcpu_cpu->io_lsu_reqValid) {
     tb->vcpu_cpu->io_lsu_reqValid = 0;
+    // BUG: doesn't work with wait == 1
     vcpu_wait_ticks(tb, 4);
     tb->vcpu->io_lsu_respValid = 1;
     v_mem_write(tb, tb->vcpu->io_lsu_wen, tb->vcpu->io_lsu_wmask, tb->vcpu->io_lsu_addr, tb->vcpu->io_lsu_wdata);
@@ -627,7 +629,7 @@ bool test_instructions(TestBench* tb) {
         }
       }
       if (tb->gcpu->is_not_mapped) {
-        // break;
+        break;
       }
     }
     tb->instrets++;
@@ -642,8 +644,8 @@ bool test_instructions(TestBench* tb) {
         }
       }
       // NOTE: cycles are offset by number of cycles during the reset, since reset period is doubled for vsoc
-      is_test_success &= compare_reg(tb->vsoc_cycles, "vsoc.mcycle",   tb->vsoc_cpu->mcycle,   tb->vsoc_cycles - tb->reset_cycles);
-      is_test_success &= compare_reg(tb->vsoc_cycles, "vsoc.minstret", tb->vsoc_cpu->minstret, tb->instrets);
+      is_test_success &= compare_reg(tb->vsoc_ticks, "vsoc.mcycle",   tb->vsoc_cpu->mcycle,   tb->vsoc_cycles - tb->reset_cycles);
+      is_test_success &= compare_reg(tb->vsoc_ticks, "vsoc.minstret", tb->vsoc_cpu->minstret, tb->instrets);
     }
 
     if (tb->is_vcpu) {
@@ -655,8 +657,8 @@ bool test_instructions(TestBench* tb) {
           is_test_success=false;
         }
       }
-      is_test_success &= compare_reg(tb->vcpu_cycles, "vcpu.mcycle",   tb->vcpu_cpu->mcycle,   tb->vcpu_cycles);
-      is_test_success &= compare_reg(tb->vcpu_cycles, "vcpu.minstret", tb->vcpu_cpu->minstret, tb->instrets);
+      is_test_success &= compare_reg(tb->vcpu_ticks, "vcpu.mcycle",   tb->vcpu_cpu->mcycle,   tb->vcpu_cycles);
+      is_test_success &= compare_reg(tb->vcpu_ticks, "vcpu.minstret", tb->vcpu_cpu->minstret, tb->instrets);
     }
 
     if (tb->is_gold && tb->is_vsoc) {
@@ -706,6 +708,9 @@ bool test_instructions(TestBench* tb) {
       break;
     }
 
+    if (!is_test_success) {
+      break;
+    }
     if (tb->is_gold && !is_valid_pc_address(tb->gcpu->pc, tb->n_insts)) {
       break;
     }
@@ -715,7 +720,7 @@ bool test_instructions(TestBench* tb) {
     if (tb->is_vcpu && !is_valid_pc_address(tb->vcpu_cpu->pc, tb->n_insts)) {
       break;
     }
-    if (tb->instrets > tb->n_insts) {
+    if (tb->is_random && tb->instrets > tb->n_insts) {
       break;
     }
   }
@@ -738,7 +743,14 @@ bool test_bin(TestBench* tb) {
   tb->n_insts = size/4;
   tb->insts = (uint32_t*)data;
 
-  return test_instructions(tb);
+  bool is_success = test_instructions(tb);
+  // if (!is_success) {
+  //   for (uint32_t i = 0; i < tb->n_insts/20; i++) {
+  //     printf("[0x%08x] 0x%08x ", 4*i, tb->insts[i]);
+  //     print_instruction(tb->insts[i]);
+  //   }
+  // }
+  return is_success;
 }
 
 bool test_random(TestBench* tb) {
@@ -761,9 +773,10 @@ bool test_random(TestBench* tb) {
     std::mt19937 gen(rand_device());
     gen.seed(seed);
     for (uint32_t rd = 1; rd < N_REGS; rd++) {
-      uint32_t mem_start_choice[3] = {UART_START >> 12, FLASH_START >> 12, MEM_START >> 12};
-      uint32_t mem_size_choice[3]  = {UART_SIZE, FLASH_SIZE, MEM_SIZE};
-      uint8_t  mem_rand            = random_range(&gen, 0, 3);
+      // NOTE: uart mem is not ever generated since uart is not fully implemented in the golden model
+      uint32_t mem_start_choice[3] = {FLASH_START >> 12, MEM_START >> 12, UART_START >> 12};
+      uint32_t mem_size_choice[3]  = {FLASH_SIZE, MEM_SIZE, UART_SIZE };
+      uint8_t  mem_rand            = random_range(&gen, 0, 2);
       uint32_t start = mem_start_choice[mem_rand];
       uint32_t size  = mem_size_choice[mem_rand];
       uint32_t base  = start + (size >> 12) / 2;

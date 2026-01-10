@@ -1,14 +1,18 @@
-import reg_defines::REG_W_END;
-
 module csr (
   input  logic               clock,
   input  logic               reset,
+/* verilator lint_off UNUSEDSIGNAL */
   input  logic               wen,
+/* verilator lint_on UNUSEDSIGNAL */
   input  logic               is_instret,
   input  logic               is_ebreak,
   input  logic [11:0]        addr,
+/* verilator lint_off UNUSEDSIGNAL */
   input  logic [REG_W_END:0] wdata,
+/* verilator lint_on UNUSEDSIGNAL */
   output logic [REG_W_END:0] rdata);
+
+  import reg_defines::REG_W_END;
 
   localparam MCYCLE_ADDR    = 12'hB00; 
   localparam MCYCLEH_ADDR   = 12'hB80; 
@@ -23,26 +27,17 @@ module csr (
   localparam MVENDORID = "beka";
   localparam MARCHID   = 32'h05318008; 
 
-  logic [63:0] mcycle;
-  logic [63:0] minstret;
+  logic [63:0] mcycle,   mcycle_n;
+  logic [63:0] minstret, minstret_n;
 
   always_ff @(posedge clock or posedge reset) begin
     if (reset) begin
       mcycle   <= 64'h0;
       minstret <= 64'h0;
     end
-    else if (wen) begin
-           if (addr == MCYCLE_ADDR)  mcycle <= {mcycle[63:32], wdata};
-      else if (addr == MCYCLEH_ADDR) mcycle <= {wdata, mcycle[31: 0]};
-      else                           mcycle <= mcycle + 1;
-
-           if (addr == MINSTRET_ADDR)  minstret <= {minstret[63:32], wdata};
-      else if (addr == MINSTRETH_ADDR) minstret <= {wdata, minstret[31: 0]};
-      else if (is_instret)             minstret <= minstret + 1;
-    end
     else begin
-      if (!is_ebreak) mcycle <= mcycle + 1;
-      if (is_instret) minstret <= minstret + 1;
+      mcycle   <= mcycle_n;
+      minstret <= minstret_n;
     end
   end
 
@@ -57,6 +52,13 @@ module csr (
       MINSTRETH_ADDR: rdata = minstret[63:32];
       default:        rdata = 32'h0;
     endcase
+  end
+
+  always_comb begin
+    mcycle_n   = mcycle + 1;
+    minstret_n = minstret;
+    if (is_ebreak) mcycle_n = mcycle;
+    if (is_instret) minstret_n = minstret + 1;
   end
 
 endmodule

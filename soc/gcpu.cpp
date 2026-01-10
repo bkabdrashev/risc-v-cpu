@@ -106,12 +106,10 @@ void g_flash_init(Gcpu* cpu, uint8_t* data, uint32_t size) {
 void g_mem_write(Gcpu* cpu, uint8_t wen, uint8_t wbmask, uint32_t addr, uint32_t wdata) {
   if (wen) {
     if (addr >= FLASH_START && addr < FLASH_END-3) {
-      // printf("[WARNING]: gcpu flash write memory 0x%x\n", addr);
+      cpu->is_not_mapped = true;
+      printf("[WARNING]: gcpu tried to write to flash memory 0x%x\n", addr);
     }
     else if (addr >= MEM_START && addr < MEM_END-3) {
-      if (addr == 0x807ff396) {
-        printf("hi");
-      }
       addr -= MEM_START;
       if (wbmask & 0b0001) cpu->mem[addr + 0] = (wdata >>  0) & 0xff;
       if (wbmask & 0b0010) cpu->mem[addr + 1] = (wdata >>  8) & 0xff;
@@ -120,7 +118,7 @@ void g_mem_write(Gcpu* cpu, uint8_t wen, uint8_t wbmask, uint32_t addr, uint32_t
     }
     else {
       cpu->is_not_mapped = true;
-      // printf("[WARNING]: gcpu mem write memory is not mapped 0x%x\n", addr);
+      printf("[WARNING]: gcpu mem write memory is not mapped 0x%x\n", addr);
     }
   }
 }
@@ -128,6 +126,11 @@ void g_mem_write(Gcpu* cpu, uint8_t wen, uint8_t wbmask, uint32_t addr, uint32_t
 uint32_t g_mem_read(Gcpu* cpu, uint32_t addr) {
   uint32_t result = 0;
   if (addr >= FLASH_START && addr < FLASH_END-3) {
+    if (addr & 3) {
+      cpu->is_not_mapped = true;
+      printf("[WARNING]: gcpu misaligned flash read 0x%x\n", addr);
+    }
+
     addr -= FLASH_START;
     result = 
       cpu->flash[addr+3] << 24 | cpu->flash[addr+2] << 16 |
@@ -152,6 +155,10 @@ uint32_t g_mem_read(Gcpu* cpu, uint32_t addr) {
           (cpu->vsoc_uart->lsr7 << 7) ;
       } break;
       case 6 : byte = cpu->vsoc_uart->msr; break;
+      default:
+        cpu->is_not_mapped = true;
+        printf("[WARNING]: gcpu uart chunk is not implemented 0x%x\n", addr);
+        break;
     }
     result = 
       byte << 24 | byte << 16 |
@@ -165,7 +172,7 @@ uint32_t g_mem_read(Gcpu* cpu, uint32_t addr) {
   }
   else {
     cpu->is_not_mapped = true;
-    // printf("[WARNING]: gcpu mem read  memory is not mapped 0x%x\n", addr);
+    printf("[WARNING]: gcpu mem read  memory is not mapped 0x%x\n", addr);
   }
   return result;
 }
@@ -240,16 +247,17 @@ void rf_write(Gcpu* cpu, uint8_t write_enable, uint8_t reg_dest, uint32_t write_
 }
 
 struct Dec_out {
-  uint8_t reg_dest;
-  uint8_t reg_src1;
-  uint8_t reg_src2;
+  uint8_t  reg_dest;
+  uint8_t  reg_src1;
+  uint8_t  reg_src2;
   uint32_t imm;
-  uint8_t mem_wbmask;
-  uint8_t is_mem_sign;
-  uint8_t alu_op;
-  uint8_t com_op;
-  uint8_t ebreak;
+  uint8_t  mem_wbmask;
+  uint8_t  is_mem_sign;
+  uint8_t  alu_op;
+  uint8_t  com_op;
+  uint8_t  ebreak;
   uint32_t inst_type;
+  bool     not_implemented;
 };
 
 Dec_out decode(uint32_t inst) {
@@ -341,7 +349,9 @@ Dec_out decode(uint32_t inst) {
       out.inst_type = 0;
       out.ebreak = take_bit(inst, 20);
     } break;
-    default: out.inst_type = 0; break;
+    default:
+      out.inst_type = 0;
+      break;
   }
 
   out.is_mem_sign = !(funct3 & 0b100);
@@ -351,6 +361,7 @@ Dec_out decode(uint32_t inst) {
 uint8_t cpu_eval(Gcpu* cpu) {
   uint32_t inst = g_mem_read(cpu, cpu->pc);
   Dec_out  dec  = decode(inst);
+  if (dec.inst_type == 0) cpu->is_not_mapped = 1;
   RF_out   rf   = rf_read(cpu, dec.reg_src1, dec.reg_src2);
   bool is_mem_op =
     dec.inst_type == INST_LOAD_BYTE ||
