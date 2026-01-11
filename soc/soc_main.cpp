@@ -461,6 +461,21 @@ void vcpu_reset(TestBench* tb) {
     vcpu_cycle(tb);
   }
   tb->vcpu->reset = 0;
+
+  tb->vcpu_cpu->minstret_start         = 0;
+  tb->vcpu_cpu->io_ifu_reqValid        = 0;
+  tb->vcpu_cpu->io_ifu_addr            = 0;
+
+  tb->vcpu_cpu->io_lsu_reqValid        = 0;
+  tb->vcpu_cpu->io_lsu_addr            = 0;
+  tb->vcpu_cpu->io_lsu_wdata           = 0;
+  tb->vcpu_cpu->io_lsu_wmask           = 0;
+  tb->vcpu_cpu->io_lsu_wen             = 0;
+
+  tb->vcpu_cpu->io_ifu_respValid_ticks = 0;
+  tb->vcpu_cpu->io_lsu_respValid_ticks = 0;
+  tb->vcpu_cpu->io_ifu_waitRespValid   = 0;
+  tb->vcpu_cpu->io_lsu_waitRespValid   = 0;
 }
 
 void vcpu_wait_ticks(TestBench* tb, uint64_t ticks) {
