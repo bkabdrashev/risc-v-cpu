@@ -36,6 +36,8 @@ module lsu (
   logic        is_misalign;
   logic        is_second_part;
   logic        is_read;
+  logic        was_instant;
+  logic        was_instant_n;
 
   assign is_misalign = (addr_offset != 2'b00 && data_size == LSU_WORD) ||
                        (addr_offset == 2'b11 && data_size == LSU_HALF) ;;
@@ -137,23 +139,29 @@ module lsu (
 
   always_ff @(posedge clock or posedge reset) begin
     if (reset) begin
-      curr_state <= LSU_IDLE;
+      curr_state  <= LSU_IDLE;
+      was_instant <= was_instant_n;
     end else begin
-      curr_state <= next_state;
+      curr_state  <= next_state;
+      was_instant <= was_instant_n;
     end
   end
 
   always_comb begin
     io_reqValid    = reqValid;
-    respValid      = io_respValid;
+    respValid      = 1'b0;
     is_second_part = 1'b0;
     first_rdata    = io_rdata[31:8];
+    was_instant_n  = 1'b0;
     case (curr_state)
       LSU_IDLE: begin
         if (reqValid) begin
-          io_reqValid = 1'b1;
+          io_reqValid   = 1'b1;
           if (io_respValid) begin
-            next_state = is_misalign ? LSU_WAIT_MIS_TWO : LSU_IDLE;
+            respValid      = 1'b1;
+            was_instant_n  = 1'b1;
+            next_state     = is_misalign ? LSU_WAIT_MIS_TWO : LSU_IDLE;
+            is_second_part = is_misalign;
           end
           else begin
             next_state = is_misalign ? LSU_WAIT_MIS_ONE : LSU_WAIT_ONE;
@@ -173,19 +181,19 @@ module lsu (
         end
       end
       LSU_WAIT_MIS_TWO: begin
-        if (io_respValid) begin
+        is_second_part = 1'b1;
+        if (io_respValid && ~was_instant) begin
           next_state  = LSU_IDLE;
           first_rdata = first_rdata_q;
+          io_reqValid = 1'b1;
           respValid   = 1'b1;
         end
         else begin
-          is_second_part = 1'b1;
-          io_reqValid    = 1'b1;
           next_state     = LSU_WAIT_MIS_TWO;
         end
       end
       LSU_WAIT_MIS_ONE: begin
-        if (io_respValid) begin
+        if (io_respValid && ~was_instant) begin
           is_second_part = 1'b1;
           io_reqValid    = 1'b1;
           respValid      = 1'b0;
