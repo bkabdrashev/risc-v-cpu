@@ -378,7 +378,9 @@ void vsoc_cycle(TestBench* tb) {
 }
 
 void vsoc_reset(TestBench* tb) {
-  printf("[INFO] vsoc reset\n");
+  if (tb->verbose >= VerboseInfo4) {
+    printf("[INFO] vsoc reset\n");
+  }
   tb->vsoc->reset = 1;
   tb->vsoc->clock = 0;
   for (uint64_t i = 0; i < tb->reset_cycles; i++) {
@@ -527,7 +529,9 @@ void vcpu_cycle(TestBench* tb) {
 }
 
 void vcpu_reset(TestBench* tb) {
-  printf("[INFO] vcpu reset\n");
+  if (tb->verbose >= VerboseInfo4) {
+    printf("[INFO] vcpu reset\n");
+  }
   tb->vcpu->reset = 1;
   tb->vcpu->clock = 0;
   memset(tb->vcpu_cpu->uart, 0, UART_SIZE);
