@@ -21,5 +21,5 @@ case "$CPU" in
 esac
 
 cd $MICROBENCH_PATH
-make ARCH=minirv-npc run verbose=4 cpu=vcpu mainargs=train
+make ARCH=minirv-npc run verbose=4 cpu="$CPU" mainargs=train
 cd - >/dev/null
