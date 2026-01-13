@@ -1208,6 +1208,7 @@ int main(int argc, char** argv, char** env) {
         fprintf(stderr, "[ERROR]: unknown mode '%s'\n", mode);
         usage(argv[0]);
         exit_code = EXIT_FAILURE;
+        goto exit_label;
       }
     }
     TestBench tb = new_testbench(config);
