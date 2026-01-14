@@ -1,0 +1,79 @@
+====================================================================================================================================
+Generate the report at 2026-01-14T11:11:31, git: 6be2d5cb9e99a0c398c62a18a60155c5aa4211d3
+====================================================================================================================================
+
+Chip area for module '\cpu': 14016.240000 of which used for sequential elements: 5542.880000 (39.55%)
+
++---------------------------------------+--------------------------+------------+------------+---------------+-------+-------+-----------+
+| Endpoint                              | Clock Group              | Delay Type | Path Delay | Path Required | CPPR  | Slack | Freq(MHz) |
++---------------------------------------+--------------------------+------------+------------+---------------+-------+-------+-----------+
+| u_rf.regs[8]_3__reg_p:D               | core_clock               | max        | 1.633f     | 9.878         | 0.000 | 8.246 | 570.000   |
+| u_rf.regs[6]_3__reg_p:D               | core_clock               | max        | 1.633f     | 9.878         | 0.000 | 8.246 | 570.000   |
+| u_rf.regs[10]_3__reg_p:D              | core_clock               | max        | 1.633f     | 9.878         | 0.000 | 8.246 | 570.000   |
+| u_rf.regs[9]_3__reg_p:D               | core_clock               | max        | 1.633f     | 9.878         | 0.000 | 8.246 | 570.000   |
+| u_rf.regs[12]_3__reg_p:D              | core_clock               | max        | 1.633f     | 9.878         | 0.000 | 8.246 | 570.000   |
+| io_lsu_size_$_ANDNOT__Y_A_$_OR__Y_B_$ | **clock_gating_default** | max        | 1.416r     | 9.940         | 0.000 | 8.524 | NA        |
+| io_lsu_size_$_ANDNOT__Y_A_$_OR__Y_B_$ | **clock_gating_default** | max        | 1.416r     | 9.940         | 0.000 | 8.524 | NA        |
+| io_lsu_size_$_ANDNOT__Y_A_$_OR__Y_B_$ | **clock_gating_default** | max        | 1.416r     | 9.940         | 0.000 | 8.524 | NA        |
+| io_lsu_size_$_ANDNOT__Y_A_$_OR__Y_B_$ | **clock_gating_default** | max        | 1.416r     | 9.940         | 0.000 | 8.524 | NA        |
+| io_lsu_size_$_ANDNOT__Y_A_$_OR__Y_B_$ | **clock_gating_default** | max        | 1.416r     | 9.940         | 0.000 | 8.524 | NA        |
+| ebreak_reg_p:D                        | core_clock               | min        | 0.113r     | -0.011        | 0.000 | 0.124 | NA        |
+| u_csr.minstret_0__reg_p:D             | core_clock               | min        | 0.115r     | -0.012        | 0.000 | 0.127 | NA        |
+| u_csr.mcycle_0__reg_p:D               | core_clock               | min        | 0.116r     | -0.012        | 0.000 | 0.128 | NA        |
+| u_csr.mcycle_63__reg_p:D              | core_clock               | min        | 0.122r     | -0.010        | 0.000 | 0.132 | NA        |
+| u_csr.minstret_63__reg_p:D            | core_clock               | min        | 0.124r     | -0.012        | 0.000 | 0.135 | NA        |
+| ebreak_INVX0P5H7L_A_Y_ICGX0P5H7L_E:E  | **clock_gating_default** | min        | 0.092f     | -0.004        | 0.000 | 0.095 | NA        |
+| ebreak_INVX0P5H7L_A_Y_ICGX0P5H7L_E:E  | **clock_gating_default** | min        | 0.091r     | -0.014        | 0.000 | 0.105 | NA        |
+| ifu_reqValid_reg_p_D_NAND2X0P5H7L_Y_B | **clock_gating_default** | min        | 0.224r     | -0.013        | 0.000 | 0.236 | NA        |
+| io_ifu_addr[0]_reg_p_E_ICGX0P5H7L_E:E | **clock_gating_default** | min        | 0.238f     | -0.000        | 0.000 | 0.238 | NA        |
+| io_ifu_addr[0]_reg_p_E_ICGX0P5H7L_E:E | **clock_gating_default** | min        | 0.231r     | -0.014        | 0.000 | 0.245 | NA        |
++---------------------------------------+--------------------------+------------+------------+---------------+-------+-------+-----------+
+
+==================================================
+MicroBench PASS
+  cycles:  2309857894
+  instrets: 202412647
+
+====================================================================================================================================
+Generate the report at 2026-01-14T16:47:28, git: de08b96761aa94412122a5db2ae76d8a0426439d
+====================================================================================================================================
+
+Chip area for module '\cpu': 21200.200000 of which used for sequential elements: 9556.960000 (45.08%)
+
++---------------------------------+--------------------------+------------+------------+---------------+-------+-------+-----------+
+| Endpoint                        | Clock Group              | Delay Type | Path Delay | Path Required | CPPR  | Slack | Freq(MHz) |
++---------------------------------+--------------------------+------------+------------+---------------+-------+-------+-----------+
+| u_rf.regs[9]_6__reg_p:D         | core_clock               | max        | 1.758f     | 9.868         | 0.000 | 8.110 | 529.019   |
+| u_rf.regs[2]_6__reg_p:D         | core_clock               | max        | 1.758f     | 9.868         | 0.000 | 8.110 | 529.019   |
+| u_rf.regs[11]_6__reg_p:D        | core_clock               | max        | 1.758f     | 9.868         | 0.000 | 8.110 | 529.019   |
+| u_rf.regs[12]_6__reg_p:D        | core_clock               | max        | 1.758f     | 9.868         | 0.000 | 8.110 | 529.019   |
+| u_rf.regs[5]_6__reg_p:D         | core_clock               | max        | 1.758f     | 9.868         | 0.000 | 8.110 | 529.019   |
+| io_lsu_size_$_NOR__Y_A_$_ANDNOT | **clock_gating_default** | max        | 1.470r     | 9.940         | 0.000 | 8.470 | NA        |
+| io_lsu_size_$_NOR__Y_A_$_ANDNOT | **clock_gating_default** | max        | 1.470r     | 9.940         | 0.000 | 8.470 | NA        |
+| io_lsu_size_$_NOR__Y_A_$_ANDNOT | **clock_gating_default** | max        | 1.470r     | 9.940         | 0.000 | 8.470 | NA        |
+| io_lsu_size_$_NOR__Y_A_$_ANDNOT | **clock_gating_default** | max        | 1.470r     | 9.940         | 0.000 | 8.470 | NA        |
+| io_lsu_size_$_NOR__Y_A_$_ANDNOT | **clock_gating_default** | max        | 1.470r     | 9.940         | 0.000 | 8.470 | NA        |
+| is_ebreak_reg_p:D               | core_clock               | min        | 0.113r     | -0.011        | 0.000 | 0.124 | NA        |
+| u_csr.mhpmcounter[7]_0__reg_p:D | core_clock               | min        | 0.114r     | -0.012        | 0.000 | 0.126 | NA        |
+| u_csr.mhpmcounter[3]_0__reg_p:D | core_clock               | min        | 0.115r     | -0.012        | 0.000 | 0.127 | NA        |
+| u_csr.minstret_0__reg_p:D       | core_clock               | min        | 0.115r     | -0.012        | 0.000 | 0.127 | NA        |
+| u_csr.mhpmcounter[6]_0__reg_p:D | core_clock               | min        | 0.115r     | -0.012        | 0.000 | 0.127 | NA        |
+| is_ebreak_INVX0P5H7L_A_Y_ICGX0P | **clock_gating_default** | min        | 0.092f     | -0.004        | 0.000 | 0.095 | NA        |
+| is_ebreak_INVX0P5H7L_A_Y_ICGX0P | **clock_gating_default** | min        | 0.091r     | -0.013        | 0.000 | 0.104 | NA        |
+| u_exu.next_state_1__NOR2BX1H7L_ | **clock_gating_default** | min        | 0.122f     | -0.007        | 0.000 | 0.129 | NA        |
+| u_exu.next_state_2__AOI2BB1X0P5 | **clock_gating_default** | min        | 0.154f     | -0.001        | 0.000 | 0.155 | NA        |
+| u_exu.next_state_1__NOR2BX1H7L_ | **clock_gating_default** | min        | 0.157r     | -0.024        | 0.000 | 0.181 | NA        |
++---------------------------------+--------------------------+------------+------------+---------------+-------+-------+-----------+
+
+==================================================
+MicroBench PASS
+  cycles:       2309857884
+  instrets:     202412647
+  ifu wait:     1851450451
+  lsu wait:     255994785
+  load   seen:  16372851
+  store  seen:  7361371
+  calc   seen:  121585033
+  jump   seen:  4179960
+  branch seen:  52913362
+  branch taken: 38589077
