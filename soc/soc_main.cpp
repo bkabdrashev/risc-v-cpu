@@ -614,17 +614,20 @@ BreakCode vcpu_break_code(TestBench* tb) {
 void vcpu_subtick(TestBench* tb) {
   if (tb->vcpu_cpu->io_ifu_respValid_ticks > 0) {
     tb->vcpu_cpu->io_ifu_respValid_ticks--;
+    if (tb->verbose >= VerboseInfo5) {
+      printf("ifu respValid ticks: %lu, address: 0x%x\n", tb->vcpu_cpu->io_ifu_respValid_ticks, tb->vcpu_cpu->io_ifu_addr);
+    }
   }
   if (tb->vcpu_cpu->io_ifu_respValid_ticks == 0) {
     tb->vcpu->io_ifu_respValid = 0;
-    if (tb->vcpu->io_ifu_reqValid && !tb->vcpu_cpu->io_ifu_reqValid) {
-      tb->vcpu_cpu->io_ifu_reqValid = tb->vcpu->io_ifu_reqValid;
-      tb->vcpu_cpu->io_ifu_addr     = tb->vcpu->io_ifu_addr;
-      uint64_t delay_ticks          = 2 * random_range(tb->random_gen, tb->mem_delay_min, tb->mem_delay_max);
-      tb->vcpu_cpu->io_ifu_waitRespValid = delay_ticks;
-      if (tb->verbose >= VerboseInfo5) {
-        printf("ifu delay_ticks: %lu, address: 0x%x\n", delay_ticks, tb->vcpu_cpu->io_ifu_addr);
-      }
+  }
+  if (tb->vcpu->io_ifu_reqValid && tb->vcpu_cpu->clock_now && !tb->vcpu_cpu->clock_pre) {
+    tb->vcpu_cpu->io_ifu_reqValid = tb->vcpu->io_ifu_reqValid;
+    tb->vcpu_cpu->io_ifu_addr     = tb->vcpu->io_ifu_addr;
+    uint64_t delay_ticks          = 2 * random_range(tb->random_gen, tb->mem_delay_min, tb->mem_delay_max);
+    tb->vcpu_cpu->io_ifu_waitRespValid = delay_ticks;
+    if (tb->verbose >= VerboseInfo5) {
+      printf("ifu delay_ticks: %lu, address: 0x%x\n", delay_ticks, tb->vcpu_cpu->io_ifu_addr);
     }
   }
   if (tb->vcpu_cpu->io_ifu_waitRespValid > 0) {
