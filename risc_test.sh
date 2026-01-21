@@ -1,4 +1,3 @@
-CPU_TESTS=/home/bekzat/chip_bootcamp/am-kernels/tests/cpu-tests
 RISCV_TESTS=/home/bekzat/chip_bootcamp/riscv-tests-am
 
 usage() {
@@ -20,10 +19,6 @@ case "$CPU" in
     exit 1
     ;;
 esac
-
-cd $CPU_TESTS
-make ARCH=minirv-npc run cpu="$CPU" verbose=4
-cd - >/dev/null
 
 cd $RISCV_TESTS
 make ARCH=minirv-npc run cpu="$CPU" verbose=4

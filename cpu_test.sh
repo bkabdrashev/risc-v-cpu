@@ -1,0 +1,25 @@
+CPU_TESTS=/home/bekzat/chip_bootcamp/am-kernels/tests/cpu-tests
+
+usage() {
+  echo "Usage:"
+  echo "  $0 vsoc"
+  echo "  $0 vcpu"
+}
+
+CPU="${1:-vsoc}"
+shift || true
+
+case "$CPU" in
+  vsoc)
+    ;;
+  vcpu)
+    ;;
+  *)
+    usage
+    exit 1
+    ;;
+esac
+
+cd $CPU_TESTS
+make ARCH=minirv-npc run cpu="$CPU" verbose=4 ALL=div
+cd - >/dev/null

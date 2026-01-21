@@ -153,6 +153,7 @@ TestBench new_testbench(TestBenchConfig config) {
     .regs          = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__cpu__DOT__u_cpu__DOT__u_rf__DOT__regs,
     .mem           = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__sdram__DOT__mem_ext__DOT__Memory,
     .uart          = {
+      .dl  = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__dl,
       .ier = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__ier,
       .iir = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__iir,
       .fcr = tb.vsoc->rootp->ysyxSoCTop__DOT__dut__DOT__asic__DOT__luart__DOT__muart__DOT__Uregs__DOT__fcr,
@@ -211,6 +212,7 @@ TestBench new_testbench(TestBenchConfig config) {
   }
   else if (tb.is_vcpu) {
     tb.gcpu->vuart = new Vuart {
+      .dl  = ((uint16_t*)tb.vcpu_cpu->uart)[0],
       .ier = tb.vcpu_cpu->uart[1],
       .iir = tb.vcpu_cpu->uart[2],
       .fcr = tb.vcpu_cpu->uart[2],
@@ -899,9 +901,11 @@ bool test_instructions(TestBench* tb) {
           is_test_success=false;
         }
       }
-      // NOTE: cycles are offset by number of cycles during the reset, since reset period is doubled for vsoc
-      is_test_success &= compare_reg(tb->vsoc_ticks, "vsoc.mcycle  ", tb->vsoc_cpu->event_counts.mcycle,   tb->vsoc_cycles - tb->reset_cycles);
-      is_test_success &= compare_reg(tb->vsoc_ticks, "vsoc.minstret", tb->vsoc_cpu->event_counts.minstret, tb->instrets);
+      else {
+        // NOTE: cycles are offset by number of cycles during the reset, since reset period is doubled for vsoc
+        is_test_success &= compare_reg(tb->vsoc_ticks, "vsoc.mcycle  ", tb->vsoc_cpu->event_counts.mcycle,   tb->vsoc_cycles - tb->reset_cycles);
+        is_test_success &= compare_reg(tb->vsoc_ticks, "vsoc.minstret", tb->vsoc_cpu->event_counts.minstret, tb->instrets);
+      }
     }
 
     if (tb->is_vcpu) {
@@ -915,8 +919,10 @@ bool test_instructions(TestBench* tb) {
           is_test_success=false;
         }
       }
-      is_test_success &= compare_reg(tb->vcpu_ticks, "vcpu.mcycle  ", tb->vcpu_cpu->event_counts.mcycle,   tb->vcpu_cycles);
-      is_test_success &= compare_reg(tb->vcpu_ticks, "vcpu.minstret", tb->vcpu_cpu->event_counts.minstret, tb->instrets);
+      else {
+        is_test_success &= compare_reg(tb->vcpu_ticks, "vcpu.mcycle  ", tb->vcpu_cpu->event_counts.mcycle,   tb->vcpu_cycles);
+        is_test_success &= compare_reg(tb->vcpu_ticks, "vcpu.minstret", tb->vcpu_cpu->event_counts.minstret, tb->instrets);
+      }
     }
 
     if (tb->is_gold) {
@@ -1029,9 +1035,9 @@ bool test_bin(TestBench* tb) {
   tb->insts = (uint32_t*)data;
 
   bool is_success = test_instructions(tb);
-  if (!is_success) {
-    print_all_instructions(tb);
-  }
+  // if (!is_success) {
+    // print_all_instructions(tb);
+  // }
   return is_success;
 }
 

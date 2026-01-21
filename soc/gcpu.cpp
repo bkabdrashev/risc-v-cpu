@@ -54,6 +54,7 @@ enum VerboseLevel {
 };
 
 struct Vuart {
+  uint16_t& dl;
   uint8_t&  ier;
   uint8_t&  iir;
   uint8_t&  fcr;
@@ -181,6 +182,7 @@ uint32_t g_mem_read(Gcpu* cpu, uint32_t un_addr) {
     addr -= UART_START;
     uint8_t byte = 0;
     switch (addr) {
+      case 0 : byte = (cpu->vuart->dl >> 0) & 0xff; break;
       case 1 : byte = cpu->vuart->ier; break;
       case 2 : byte = cpu->vuart->iir; break;
       case 3 : byte = cpu->vuart->lcr; break;
