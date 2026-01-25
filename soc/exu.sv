@@ -165,6 +165,7 @@ logic is_ifu_wait;
 logic is_lsu_wait;
 logic is_load_seen;
 logic is_store_seen;
+logic is_system_seen;
 logic is_calc_seen;
 logic is_jump_seen;
 logic is_branch_seen;
@@ -176,6 +177,7 @@ assign is_ifu_wait     = next_state == EXU_STALL_IDU;
 assign is_lsu_wait     = next_state == EXU_STALL_LSU;
 assign is_load_seen    = respValid & (inst_type[5:3] == INST_LOAD);
 assign is_store_seen   = respValid & (inst_type[5:3] == INST_STORE);
+assign is_system_seen  = respValid & (inst_type[5:3] == INST_SYSTEM);
 assign is_calc_seen    = respValid & (inst_type[5:4] == INST_EXEC) & (inst_type[0] == INST_CALC);
 assign is_jump_seen    = respValid & is_jump;
 assign is_branch_seen  = respValid & is_branch;
@@ -188,6 +190,7 @@ import "DPI-C" context task exu_perf_measure(
   input bit is_lsu_wait,
   input bit is_load_seen,
   input bit is_store_seen,
+  input bit is_system_seen,
   input bit is_calc_seen,
   input bit is_jump_seen,
   input bit is_branch_seen,
@@ -200,7 +203,7 @@ always_ff @(posedge clock or posedge reset) begin
     exu_perf_reset();
   end
   else begin
-    exu_perf_measure(is_ebreak, is_instret, is_ifu_wait, is_lsu_wait, is_load_seen, is_store_seen, is_calc_seen, is_jump_seen, is_branch_seen, is_branch_taken);
+    exu_perf_measure(is_ebreak, is_instret, is_ifu_wait, is_lsu_wait, is_load_seen, is_store_seen, is_system_seen, is_calc_seen, is_jump_seen, is_branch_seen, is_branch_taken);
   end
 end
 

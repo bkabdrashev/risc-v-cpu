@@ -82,6 +82,7 @@ struct VEventCounts {
   uint64_t mlsu_wait;
   uint64_t mload_seen;
   uint64_t mstore_seen;
+  uint64_t msystem_seen;
   uint64_t mcalc_seen;
   uint64_t mjump_seen;
   uint64_t mbranch_seen;

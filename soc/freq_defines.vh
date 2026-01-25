@@ -1,1 +1,1 @@
-localparam RS =  473630 ;
+localparam RS =  507068 ;

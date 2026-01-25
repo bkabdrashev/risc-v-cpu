@@ -183,6 +183,7 @@ TestBench new_testbench(TestBenchConfig config) {
       .mlsu_wait     = 0,
       .mload_seen    = 0,
       .mstore_seen   = 0,
+      .msystem_seen  = 0,
       .mcalc_seen    = 0,
       .mjump_seen    = 0,
       .mbranch_seen  = 0,
@@ -204,6 +205,7 @@ TestBench new_testbench(TestBenchConfig config) {
       .mlsu_wait       = 0,
       .mload_seen      = 0,
       .mstore_seen     = 0,
+      .msystem_seen    = 0,
       .mcalc_seen      = 0,
       .mjump_seen      = 0,
       .mbranch_seen    = 0,
@@ -397,6 +399,7 @@ extern "C" void exu_perf_reset() {
   dpi_testbench->vsoc_cpu->event_counts.mlsu_wait     = 0;
   dpi_testbench->vsoc_cpu->event_counts.mload_seen    = 0;
   dpi_testbench->vsoc_cpu->event_counts.mstore_seen   = 0;
+  dpi_testbench->vsoc_cpu->event_counts.msystem_seen  = 0;
   dpi_testbench->vsoc_cpu->event_counts.mcalc_seen    = 0;
   dpi_testbench->vsoc_cpu->event_counts.mjump_seen    = 0;
   dpi_testbench->vsoc_cpu->event_counts.mbranch_seen  = 0;
@@ -409,6 +412,7 @@ extern "C" void exu_perf_measure(svBit is_ebreak,
                                  svBit is_lsu_wait,
                                  svBit is_load_seen,
                                  svBit is_store_seen,
+                                 svBit is_system_seen,
                                  svBit is_calc_seen,
                                  svBit is_jump_seen,
                                  svBit is_branch_seen,
@@ -419,6 +423,7 @@ extern "C" void exu_perf_measure(svBit is_ebreak,
   if (is_lsu_wait)     dpi_testbench->vsoc_cpu->event_counts.mlsu_wait     += 1;
   if (is_load_seen)    dpi_testbench->vsoc_cpu->event_counts.mload_seen    += 1;
   if (is_store_seen)   dpi_testbench->vsoc_cpu->event_counts.mstore_seen   += 1;
+  if (is_system_seen)  dpi_testbench->vsoc_cpu->event_counts.msystem_seen  += 1;
   if (is_calc_seen)    dpi_testbench->vsoc_cpu->event_counts.mcalc_seen    += 1;
   if (is_jump_seen)    dpi_testbench->vsoc_cpu->event_counts.mjump_seen    += 1;
   if (is_branch_seen)  dpi_testbench->vsoc_cpu->event_counts.mbranch_seen  += 1;
@@ -896,6 +901,7 @@ void print_finished_stat(TestBench* tb, const char* cpu_name, VEventCounts event
            "  lsu wait:     %lu\n"
            "  load   seen:  %lu\n"
            "  store  seen:  %lu\n"
+           "  system seen:  %lu\n"
            "  calc   seen:  %lu\n"
            "  jump   seen:  %lu\n"
            "  branch seen:  %lu\n"
@@ -907,19 +913,21 @@ void print_finished_stat(TestBench* tb, const char* cpu_name, VEventCounts event
            event_counts.mlsu_wait,
            event_counts.mload_seen,
            event_counts.mstore_seen,
+           event_counts.msystem_seen,
            event_counts.mcalc_seen,
            event_counts.mjump_seen,
            event_counts.mbranch_seen,
            event_counts.mbranch_taken);
   }
   if (tb->measure_file) {
-    append_to_file(tb->measure_file, "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,-,-,-",
+    append_to_file(tb->measure_file, "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,-,-",
       event_counts.minstret,
       event_counts.mcycle,
       event_counts.mifu_wait,
       event_counts.mlsu_wait,
       event_counts.mload_seen,
       event_counts.mstore_seen,
+      event_counts.msystem_seen,
       event_counts.mcalc_seen,
       event_counts.mjump_seen,
       event_counts.mbranch_seen,
