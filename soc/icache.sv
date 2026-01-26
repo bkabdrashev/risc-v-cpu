@@ -9,8 +9,8 @@ module icache (
 
   localparam m = 2;
   localparam n = 4;
-  localparam TAG_W    = 32-m-n;
-  localparam DATA_W   = 8 * (2**m);
+  localparam TAG_W  = 32-m-n;
+  localparam DATA_W = 8 * (2**m);
 
 /*
       ICACHE
@@ -70,4 +70,19 @@ module icache (
     end
   end
 
+`ifdef verilator
+import "DPI-C" context task icache_perf_measure(input bit is_hit);
+import "DPI-C" context task icache_perf_reset();
+
+always_ff @(posedge clock or posedge reset) begin
+  if (reset) begin
+    icache_perf_reset();
+  end
+  else begin
+    icache_perf_measure(is_hit);
+  end
+end
+`endif
+
 endmodule
+

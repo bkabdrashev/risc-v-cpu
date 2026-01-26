@@ -430,6 +430,14 @@ extern "C" void exu_perf_measure(svBit is_ebreak,
   if (is_branch_taken) dpi_testbench->vsoc_cpu->event_counts.mbranch_taken += 1;
 }
 
+extern "C" void icache_perf_reset() {
+  dpi_testbench->vsoc_cpu->event_counts.micache_hits   = 0;
+}
+
+extern "C" void icache_perf_measure(svBit is_hit) {
+  if (is_hit) dpi_testbench->vsoc_cpu->event_counts.micache_hits += 1;
+}
+
 void vsoc_flash_init(uint8_t* data, uint32_t size) {
   for (uint32_t i = 0; i < size; i++) {
     vsoc_flash[i] = data[i];
@@ -906,6 +914,7 @@ void print_finished_stat(TestBench* tb, const char* cpu_name, VEventCounts event
            "  jump   seen:  %lu\n"
            "  branch seen:  %lu\n"
            "  branch taken: %lu\n",
+           "  icache hits:  %lu\n",
            cpu_name,
            event_counts.mcycle,
            event_counts.minstret,
@@ -917,10 +926,12 @@ void print_finished_stat(TestBench* tb, const char* cpu_name, VEventCounts event
            event_counts.mcalc_seen,
            event_counts.mjump_seen,
            event_counts.mbranch_seen,
-           event_counts.mbranch_taken);
+           event_counts.mbranch_taken,
+           event_counts.micache_hits
+         );
   }
   if (tb->measure_file) {
-    append_to_file(tb->measure_file, "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,-,-",
+    append_to_file(tb->measure_file, "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu",
       event_counts.minstret,
       event_counts.mcycle,
       event_counts.mifu_wait,
@@ -931,7 +942,9 @@ void print_finished_stat(TestBench* tb, const char* cpu_name, VEventCounts event
       event_counts.mcalc_seen,
       event_counts.mjump_seen,
       event_counts.mbranch_seen,
-      event_counts.mbranch_taken);
+      event_counts.mbranch_taken,
+      event_counts.micache_hits
+    );
   }
 }
 bool test_instructions(TestBench* tb) {

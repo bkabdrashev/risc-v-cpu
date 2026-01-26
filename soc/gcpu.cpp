@@ -87,6 +87,7 @@ struct VEventCounts {
   uint64_t mjump_seen;
   uint64_t mbranch_seen;
   uint64_t mbranch_taken;
+  uint64_t micache_hits;
 };
 
 struct VSoCcpu {
