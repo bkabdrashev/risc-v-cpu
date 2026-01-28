@@ -4,7 +4,9 @@ module icache (
   input  logic        wen,
   input  logic [31:0] wdata,
   input  logic [31:2] addr,
+  input  logic        reqValid,
   output logic        is_hit,
+  output logic        respValid,
   output logic [31:0] rdata);
 
   localparam m = 2;
@@ -35,38 +37,38 @@ module icache (
   logic  [TAG_W-1:0]  tag;
   logic  [    n-1:0]  index;
   line_t              line;
-  logic               line_valid;
-  logic  [TAG_W-1:0]  line_tag;
-  logic  [DATA_W-1:0] line_data;
   assign tag    = addr[   31:m+n];
   assign index  = addr[m+n-1:  m];
   assign line   = lines[index];
-  assign line_valid = line.valid;
-  assign line_tag   = line.tag;
-  assign line_data  = line.data;
+  assign rdata  = line.data;
 
+  logic  writeValid;
+  logic  readValid;
   generate
     for (genvar i = 0; i < LINE_N; i++) begin : gen_lines_ff
       always_ff @(posedge clock or posedge reset) begin
         if (reset) begin
           lines[i].valid <= 1'b0;
+          writeValid     <= 1'b0;
         end
         else if (wen && i == index) begin
-          lines[i] <= {1'b1, tag, wdata};
+          lines[i]   <= {1'b1, tag, wdata};
+          writeValid <= 1'b1;
+        end
+        else begin
+          writeValid <= 1'b0;
         end
       end
     end
   endgenerate
 
-
+  assign respValid = writeValid | readValid;
   always_comb begin
-    is_hit = 1'b0;
-    rdata  = 32'b0;
-    if (line_valid) begin
-      if (line_tag == tag) begin
-        is_hit = 1'b1;
-        rdata  = line_data;
-      end
+    is_hit    = 1'b0;
+    readValid = 1'b0;
+    if (reqValid) begin
+      is_hit    = line.valid && line.tag == tag;
+      readValid = 1'b1;
     end
   end
 
