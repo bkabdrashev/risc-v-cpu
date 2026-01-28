@@ -49,24 +49,28 @@ module icache (
       always_ff @(posedge clock or posedge reset) begin
         if (reset) begin
           lines[i].valid <= 1'b0;
-          writeValid     <= 1'b0;
         end
         else if (wen && i == index) begin
           lines[i]   <= {1'b1, tag, wdata};
-          writeValid <= 1'b1;
-        end
-        else begin
-          writeValid <= 1'b0;
         end
       end
     end
   endgenerate
 
+  always_ff @(posedge clock or posedge reset) begin
+    if (reset) begin
+      writeValid <= 1'b0;
+    end
+    else begin
+      writeValid <= wen;
+    end
+  end
+
   assign respValid = writeValid | readValid;
   always_comb begin
     is_hit    = 1'b0;
     readValid = 1'b0;
-    if (reqValid) begin
+    if (reqValid && !wen) begin
       is_hit    = line.valid && line.tag == tag;
       readValid = 1'b1;
     end
