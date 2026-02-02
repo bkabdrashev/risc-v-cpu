@@ -23,8 +23,6 @@ struct Cachesim {
   Cache    full;
   SeenSet  seen;
   
-  uint32_t* itrace; // array of fetched PC
-  uint64_t  itrace_len;
   uint64_t  hits;
   uint64_t  compulsory_misses;
   uint64_t  capacity_misses;
@@ -81,10 +79,10 @@ static bool seenset_insert_if_new(SeenSet *s, uint32_t key) {
   return true;
 }
 
-Cachesim new_cachesim(uint32_t sets, uint32_t ways, uint32_t total_bytes, uint32_t line_bytes, uint32_t* itrace, uint64_t itrace_len) {
-  Cachesim sim = { .total_bytes = total_bytes, .line_bytes = line_bytes, .itrace = itrace};
+Cachesim new_cachesim(uint32_t sets, uint32_t ways, uint32_t total_bytes, uint32_t line_bytes) {
+  Cachesim sim = { .total_bytes = total_bytes, .line_bytes = line_bytes};
 
-  sim.seen = new_seenset(itrace_len);
+  sim.seen = new_seenset(1024);
 
   sim.real.sets  = sets;
   sim.real.ways  = ways;
@@ -149,24 +147,21 @@ static bool cache_access(Cachesim* sim, uint32_t line_addr, uint64_t time) {
   return false;
 }
 
-void cachesim_eval(Cachesim* sim) {
-  for (uint64_t i = 0; i < sim->itrace_len; i++) {
-    u32 pc = sim->itrace[i];
-    uint32_t line_addr = pc / sim->line_bytes;
+void cachesim_eval(Cachesim* sim, u32 pc) {
+  uint32_t line_addr = pc / sim->line_bytes;
 
-    bool full_hit = cache_access(&sim->full, line_addr, time);
-    bool real_hit = cache_access(&sim->real, line_addr, time);
-    if (real_hit) {
-      sim->hits++;
-    }
-    else if (seenset_insert_if_new(sim->seen, line_addr)) {
-      sim->compulsory_misses++;
-    }
-    else if (full_hit) {
-      sim->capacity_misses++;
-    }
-    else {
-      sim->conflict_misses++;
-    }
+  bool full_hit = cache_access(&sim->full, line_addr, time);
+  bool real_hit = cache_access(&sim->real, line_addr, time);
+  if (real_hit) {
+    sim->hits++;
+  }
+  else if (seenset_insert_if_new(sim->seen, line_addr)) {
+    sim->compulsory_misses++;
+  }
+  else if (full_hit) {
+    sim->capacity_misses++;
+  }
+  else {
+    sim->conflict_misses++;
   }
 }

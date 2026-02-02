@@ -17,6 +17,7 @@
 
 #include "riscv.cpp"
 #include "gcpu.cpp"
+#include "cachesim.cpp"
 
 typedef VysyxSoCTop VSoC;
 
@@ -975,6 +976,7 @@ bool test_instructions(TestBench* tb) {
   tb->vcpu_ticks  = 1;
 
   bool is_test_success = true;
+  Cachesim sim = new_cachesim(1, 1, 16, 4);
   while (1) {
     uint32_t pc = 0;
     uint32_t inst = 0;
@@ -986,6 +988,10 @@ bool test_instructions(TestBench* tb) {
       pc   = tb->vcpu_cpu->pc;
       inst = v_mem_read(tb, tb->vcpu_cpu->pc);
     }
+    else if (tb->is_vsoc) {
+      pc = tb->vsoc_cpu->pc;
+    }
+    cachesim_eval(&sim, pc);
     tb->instrets++;
 
     if (tb->is_vsoc) {
@@ -1111,8 +1117,9 @@ bool test_instructions(TestBench* tb) {
       break;
     }
   }
+
   if (tb->is_vsoc) {
-    print_finished_stat(tb, "vsoc", tb->vsoc_cpu->event_counts);
+    print_finished_stat(tb, "vsoc", tb->vsoc_cpu->event_counts, &sim);
   }
   if (tb->is_vcpu) {
     // print_finished_stat(tb, "vcpu", tb->vcpu_cpu->event_counts);
