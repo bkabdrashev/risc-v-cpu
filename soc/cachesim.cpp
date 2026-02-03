@@ -11,10 +11,10 @@ struct Cache {
 };
 
 struct SeenSet {
+  uint64_t cap;         // power of 2
+  uint64_t len;
   uint32_t *keys;
   uint8_t  *used;       // 0 = empty, 1 = occupied
-  uint64_t cap;           // power of 2
-  uint64_t len;
 };
 
 struct Cachesim {
@@ -51,13 +51,31 @@ static inline uint32_t hash32_u64(uint64_t k) {
   return hash32(x);
 }
 
-static SetSeen new_seenset(uint64_t expected_items) {
-  SetSeen s = {};
-  s.cap = next_pow2(expected_items * 2 + 16); // keep load factor < ~0.5
+static SeenSet new_seenset(uint64_t expected_items) {
+  SeenSet s = {};
+  s.cap = next_pow2(expected_items * 2);
   s.len = 0;
-  s.keys = (uint32_t*)calloc(s->cap, sizeof(uint32_t));
-  s.used = (uint8_t*)calloc(s->cap, sizeof(uint8_t));
+  s.keys = (uint32_t*)calloc(s.cap, sizeof(uint32_t));
+  s.used = (uint8_t*)calloc(s.cap, sizeof(uint8_t));
   return s;
+}
+
+static bool seenset_insert_if_new(SeenSet *s, uint32_t key);
+static void seenset_grow(SeenSet* s, uint64_t new_cap) {
+  SeenSet new_set = {
+    .cap = new_cap,
+    .len = 0,
+    .keys = (uint32_t*)calloc(new_cap, sizeof(uint32_t)),
+    .used = (uint8_t*)calloc(new_cap, sizeof(uint8_t)),
+  };
+  for (uint64_t i = 0; i < s->cap; i++) {
+    if (s->keys[i]) {
+      seenset_insert_if_new(&new_set, s->keys[i]);
+    }
+  }
+  free(s->keys);
+  free(s->used);
+  *s = new_set;
 }
 
 static void delete_seenset(SeenSet *s) {
@@ -67,8 +85,12 @@ static void delete_seenset(SeenSet *s) {
 }
 
 static bool seenset_insert_if_new(SeenSet *s, uint32_t key) {
+  if (2 * s->len >= s->cap) {
+    seenset_grow(s, 2*s->cap);
+  }
   uint64_t mask = s->cap - 1;
-  uint64_t i = (uint64_t)(hash32_64(key) & mask);
+  uint64_t i = (uint64_t)(hash32_u64(key) & mask);
+
   while (s->used[i]) {
     if (s->keys[i] == key) return false;
     i = (i + 1) & mask;
@@ -79,36 +101,34 @@ static bool seenset_insert_if_new(SeenSet *s, uint32_t key) {
   return true;
 }
 
-Cachesim new_cachesim(uint32_t sets, uint32_t ways, uint32_t total_bytes, uint32_t line_bytes) {
-  Cachesim sim = { .total_bytes = total_bytes, .line_bytes = line_bytes};
-
+Cachesim new_cachesim(uint32_t sets, uint32_t ways, uint32_t line_bytes) {
+  Cachesim sim = { .line_bytes = line_bytes};
+  uint32_t lines = sets * ways;
+  uint32_t total_bytes = lines * line_bytes;
   sim.seen = new_seenset(1024);
 
   sim.real.sets  = sets;
   sim.real.ways  = ways;
-  sim.real.lines = (CacheLine*)calloc(sets * ways, sizeof(CacheLine));
+  sim.real.lines = (CacheLine*)calloc(lines, sizeof(CacheLine));
 
   sim.full.sets  = 1;
   sim.full.ways  = total_bytes / line_bytes;
-  sim.full.lines = (CacheLine*)calloc(sets * ways, sizeof(CacheLine));
-
+  sim.full.lines = (CacheLine*)calloc(lines, sizeof(CacheLine));
   
   return sim;
 }
 
-new_cachesim
-
-static inline void split_line(Cachesim* sim, uint32_t line_addr, uint32_t* set_idx, uint32_t* tag) {
+static inline void split_line(Cache* c, uint32_t line_addr, uint32_t* set_idx, uint32_t* tag) {
   *tag = line_addr / c->sets;
-  *set_idx = line_addr % c->sets);
+  *set_idx = line_addr % c->sets;
 }
 
-static bool cache_access(Cachesim* sim, uint32_t line_addr, uint64_t time) {
+static bool cache_access(Cache* c, uint32_t line_addr, uint64_t time) {
   uint32_t set_idx;
   uint32_t tag;
-  split_line(sim, line_addr, &set_idx, &tag);
+  split_line(c, line_addr, &set_idx, &tag);
 
-  CacheLine* set = &sim->lines[set_idx * c->ways];
+  CacheLine* set = &c->lines[set_idx * c->ways];
 
   // Hit?
   for (uint32_t w = 0; w < c->ways; w++) {
@@ -147,7 +167,7 @@ static bool cache_access(Cachesim* sim, uint32_t line_addr, uint64_t time) {
   return false;
 }
 
-void cachesim_eval(Cachesim* sim, u32 pc) {
+void cachesim_eval(Cachesim* sim, uint32_t pc, uint64_t time) {
   uint32_t line_addr = pc / sim->line_bytes;
 
   bool full_hit = cache_access(&sim->full, line_addr, time);
@@ -155,7 +175,7 @@ void cachesim_eval(Cachesim* sim, u32 pc) {
   if (real_hit) {
     sim->hits++;
   }
-  else if (seenset_insert_if_new(sim->seen, line_addr)) {
+  else if (seenset_insert_if_new(&sim->seen, line_addr)) {
     sim->compulsory_misses++;
   }
   else if (full_hit) {

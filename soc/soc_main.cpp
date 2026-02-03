@@ -901,7 +901,7 @@ bool compare_vcpu_vsoc(TestBench* tb) {
   return result;
 }
 
-void print_finished_stat(TestBench* tb, const char* cpu_name, VEventCounts event_counts) {
+void print_finished_stat(TestBench* tb, const char* cpu_name, VEventCounts event_counts, Cachesim cachesim) {
   if (tb->verbose >= VerboseInfo4) {
     printf("[INFO] %s finished:\n"
            "  cycles:       %lu\n"
@@ -915,7 +915,10 @@ void print_finished_stat(TestBench* tb, const char* cpu_name, VEventCounts event
            "  jump   seen:  %lu\n"
            "  branch seen:  %lu\n"
            "  branch taken: %lu\n"
-           "  icache hits:  %lu\n",
+           "  icache hits:  %lu\n"
+           "  icache compulsory misses: %lu\n"
+           "  icache capacity   misses: %lu\n"
+           "  icache conflict   misses: %lu\n",
            cpu_name,
            event_counts.mcycle,
            event_counts.minstret,
@@ -928,11 +931,14 @@ void print_finished_stat(TestBench* tb, const char* cpu_name, VEventCounts event
            event_counts.mjump_seen,
            event_counts.mbranch_seen,
            event_counts.mbranch_taken,
-           event_counts.micache_hits
+           event_counts.micache_hits,
+           cachesim.compulsory_misses,
+           cachesim.capacity_misses,
+           cachesim.conflict_misses
          );
   }
   if (tb->measure_file) {
-    append_to_file(tb->measure_file, "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu",
+    append_to_file(tb->measure_file, "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu",
       event_counts.minstret,
       event_counts.mcycle,
       event_counts.mifu_wait,
@@ -944,7 +950,10 @@ void print_finished_stat(TestBench* tb, const char* cpu_name, VEventCounts event
       event_counts.mjump_seen,
       event_counts.mbranch_seen,
       event_counts.mbranch_taken,
-      event_counts.micache_hits
+      event_counts.micache_hits,
+      cachesim.compulsory_misses,
+      cachesim.capacity_misses,
+      cachesim.conflict_misses
     );
   }
 }
@@ -976,7 +985,7 @@ bool test_instructions(TestBench* tb) {
   tb->vcpu_ticks  = 1;
 
   bool is_test_success = true;
-  Cachesim sim = new_cachesim(1, 1, 16, 4);
+  Cachesim sim = new_cachesim(256, 1, 4);
   while (1) {
     uint32_t pc = 0;
     uint32_t inst = 0;
@@ -991,7 +1000,7 @@ bool test_instructions(TestBench* tb) {
     else if (tb->is_vsoc) {
       pc = tb->vsoc_cpu->pc;
     }
-    cachesim_eval(&sim, pc);
+    cachesim_eval(&sim, pc, tb->instrets);
     tb->instrets++;
 
     if (tb->is_vsoc) {
@@ -1119,7 +1128,7 @@ bool test_instructions(TestBench* tb) {
   }
 
   if (tb->is_vsoc) {
-    print_finished_stat(tb, "vsoc", tb->vsoc_cpu->event_counts, &sim);
+    print_finished_stat(tb, "vsoc", tb->vsoc_cpu->event_counts, sim);
   }
   if (tb->is_vcpu) {
     // print_finished_stat(tb, "vcpu", tb->vcpu_cpu->event_counts);
