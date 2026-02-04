@@ -9,10 +9,14 @@ module icache (
   output logic        respValid,
   output logic [31:0] rdata);
 
-  localparam m = 2;
-  localparam n = 8;
+  localparam SETS   = 256;
+  localparam WAYS   = 1;
+  localparam DATA_B = 4;
+  localparam DATA_W = 8 * DATA_B;
+  localparam LINES  = SETS * WAYS;
+  localparam m      = $clog2(DATA_B);
+  localparam n      = $clog2(LINES);
   localparam TAG_W  = 32-m-n;
-  localparam DATA_W = 8 * (2**m);
 
 /*
       ICACHE
@@ -21,7 +25,7 @@ module icache (
   +---+-----+------+
   | v | tag | data |
   +---+-----+------+
-  |   |     |      | x16
+  |   |     |      |
   +---+-----+------+
 */
 
@@ -31,8 +35,7 @@ module icache (
     logic [DATA_W-1:0] data;
   } line_t;
 
-  localparam LINE_N = 2**n;
-  line_t lines [0:LINE_N-1];
+  line_t lines [0:LINES-1];
 
   logic  [TAG_W-1:0]  tag;
   logic  [    n-1:0]  index;
@@ -43,18 +46,16 @@ module icache (
 
   logic  writeValid;
   logic  readValid;
-  generate
-    for (genvar i = 0; i < LINE_N; i++) begin : gen_lines_ff
-      always_ff @(posedge clock or posedge reset) begin
-        if (reset) begin
+    always_ff @(posedge clock or posedge reset) begin
+      if (reset) begin
+        for (integer i = 0; i < LINES; i++) begin : gen_lines_ff
           lines[i].valid <= 1'b0;
         end
-        else if (wen && i == index) begin
-          lines[i]   <= {1'b1, tag, wdata};
-        end
+      end
+      else if (wen) begin
+        lines[index] <= {1'b1, tag, wdata};
       end
     end
-  endgenerate
 
   always_ff @(posedge clock or posedge reset) begin
     if (reset) begin
