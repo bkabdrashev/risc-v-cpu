@@ -37,7 +37,6 @@ module icache (
   } line_t;
 */
   typedef logic [1 + TAG_W + DATA_W - 1:0] line_t;
-
   typedef line_t set_t [0:WAYS-1];
   set_t sets [0:SETS-1];
 
