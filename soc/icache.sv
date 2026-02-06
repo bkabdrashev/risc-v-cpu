@@ -13,11 +13,10 @@ module icache (
   localparam WAYS   = 1;
   localparam DATA_B = 4;
   localparam DATA_W = 8 * DATA_B;
-  localparam LINES  = SETS * WAYS;
   localparam m      = $clog2(DATA_B);
-  localparam n      = $clog2(LINES);
+  localparam n      = $clog2(SETS);
   localparam TAG_W  = 32-m-n;
-  localparam WAY_W  = $clog2(WAYS);
+  localparam WAY_W  = WAYS > 1 ? $clog2(WAYS) : 1;
 
 /*
       ICACHE
@@ -30,34 +29,33 @@ module icache (
   +---+-----+------+
 */
 
-  typedef struct packed {
-    logic              valid;
-    logic [ TAG_W-1:0] tag;
-    logic [DATA_W-1:0] data;
-  } line_t;
+  logic              valids [0:SETS-1][0:WAYS-1];
+  logic [ TAG_W-1:0] tags   [0:SETS-1][0:WAYS-1];
+  logic [DATA_W-1:0] data   [0:SETS-1][0:WAYS-1];
 
-  typedef line_t [0:WAYS-1] set_t;
-  set_t sets [0:SETS-1];
+  typedef logic [WAY_W-1:0] way_t; // index type to the set
 
-  integer unsigned victim_way;
-  if (WAYS > 1) begin : gen_ways
+  logic  [TAG_W-1:0]  tag;
+  logic  [    n-1:0]  index;
+  assign {tag, index} = addr[31:m];
+
+  way_t victim_way;
+  if (WAYS > 1) begin : gen_more_ways
     logic invalid_found;
-    integer unsigned invalid_way;
+    way_t invalid_way;
 
     always_comb begin
       invalid_found = 1'b0;
       invalid_way   = 0;
-
       for (integer w = 0; w < WAYS; w++) begin
-        if (!invalid_found && !sets[index][w].valid) begin
+        if (!invalid_found && !valids[index][w]) begin
           invalid_found = 1'b1;
-          invalid_way   = w;
+          invalid_way   = w[WAY_W-1:0];
         end
       end
-
     end
 
-    logic [WAY_W-1:0] lru_stack [0:SETS-1][0:WAYS-1];
+    way_t lru_stack [0:SETS-1][0:WAYS-1];
     always_comb begin
       if (invalid_found) begin
         victim_way = invalid_way;
@@ -69,7 +67,7 @@ module icache (
       if (reset) begin
         for (integer s = 0; s < SETS; s++) begin : sets_reset_lru_stack
           for (integer w = 0; w < WAYS; w++) begin : ways_reset_lru_stack
-            lru_stack[s][w]  <= logic'(w[WAY_W-1:0]);
+            lru_stack[s][w] <= w[WAY_W-1:0];
           end
         end
       end
@@ -78,39 +76,38 @@ module icache (
         pos = 0;
 
         for (integer w = 0; w < WAYS; w++) begin
-         if (lru_stack[index][w] == logic'(victim_way[WAY_W-1:0])) 
+          if (lru_stack[index][w] == victim_way[WAY_W-1:0]) 
           pos = w;
         end
 
         // shift [0..pos-1] down by 1, place victim at [0]
-        for (int i = pos; i > 0; i--) begin
-         lru_stack[index][i] <= lru_stack[index][i-1];
+        for (int i = WAYS-1; i > 0; i--) begin
+          if (i <= pos) begin
+            lru_stack[index][i] <= lru_stack[index][i-1];
+          end
         end
-        lru_stack[index][0] <= logic'(victim_way[WAY_W-1:0]);
+        lru_stack[index][0] <= victim_way[WAY_W-1:0];
       end
     end
   end
-  else begin : gen_no_ways
+  else begin : gen_one_ways
     assign victim_way = 0;
   end
   logic hit_found;
-  integer unsigned hit_way;
+  way_t hit_way;
 
-  logic  [TAG_W-1:0]  tag;
-  logic  [    n-1:0]  index;
-  assign {tag, index} = addr[31:m];
   always_ff @(posedge clock or posedge reset) begin
     if (reset) begin
       for (integer s = 0; s < SETS; s++) begin : sets_reset_valid_ff
         for (integer w = 0; w < WAYS; w++) begin : ways_reset_valid_ff
-          sets[s][w].valid <= 1'b0;
+          valids[s][w] <= 1'b0;
         end
       end
     end
     else if (wen) begin
-      sets[index][victim_way].valid <= 1'b1;
-      sets[index][victim_way].tag   <= tag;
-      sets[index][victim_way].data  <= wdata;
+      valids[index][victim_way] <= 1'b1;
+      tags  [index][victim_way] <= tag;
+      data  [index][victim_way] <= wdata;
     end
   end
 
@@ -131,10 +128,10 @@ module icache (
     hit_found = 1'b0;
     hit_way   = 0;
     if (reqValid && !wen) begin
-      for (integer w = 0; w < WAYS; w++) begin : gen_ways
-        if (sets[index][w].valid && sets[index][w].tag == tag) begin
+      for (integer w = 0; w < WAYS; w++) begin : gen_hit_way
+        if (valids[index][w] && tags[index][w] == tag) begin
           hit_found = 1'b1;
-          hit_way   = w;
+          hit_way   = w[WAY_W-1:0];
         end
       end
     end
@@ -149,7 +146,7 @@ module icache (
       readValid = 1'b1;
       if (hit_found) begin
         is_hit = 1'b1;
-        rdata  = sets[index][hit_way].data;
+        rdata  = data[index][hit_way];
       end
     end
   end
