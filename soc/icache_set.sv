@@ -1,4 +1,4 @@
-module icache (
+module icache_set (
   input  logic        clock,
   input  logic        reset,
   input  logic        wen,
@@ -29,14 +29,11 @@ module icache (
   +---+-----+------+
 */
 
-/* NOTE: yosys doesn't support 2d array of structs (but supports 1d array of structs)... bummer.
   typedef struct packed {
     logic              valid;
     logic [ TAG_W-1:0] tag;
     logic [DATA_W-1:0] data;
   } line_t;
-*/
-  typedef logic [1 + TAG_W + DATA_W - 1:0] line_t;
 
   typedef line_t set_t [0:WAYS-1];
   set_t sets [0:SETS-1];
@@ -56,7 +53,7 @@ module icache (
       invalid_found = 1'b0;
       invalid_way   = 0;
       for (integer w = 0; w < WAYS; w++) begin
-        if (!invalid_found && !sets[index][w][TAG_W+DATA_W]) begin
+        if (!invalid_found && !sets[index][w].valid) begin
           invalid_found = 1'b1;
           invalid_way   = w[WAY_W-1:0];
         end
@@ -108,7 +105,7 @@ module icache (
     if (reset) begin
       for (integer s = 0; s < SETS; s++) begin : sets_reset_valid_ff
         for (integer w = 0; w < WAYS; w++) begin : ways_reset_valid_ff
-          sets[s][w][TAG_W+DATA_W] <= 1'b0;
+          sets[s][w].valid <= 1'b0;
         end
       end
     end
@@ -135,7 +132,7 @@ module icache (
     hit_way   = 0;
     if (reqValid && !wen) begin
       for (integer w = 0; w < WAYS; w++) begin : gen_hit_way
-        if (sets[index][w][TAG_W+DATA_W] && sets[index][w][TAG_W-1+DATA_W:DATA_W] == tag) begin
+        if (sets[index][w].valid && sets[index][w].tag == tag) begin
           hit_found = 1'b1;
           hit_way   = w[WAY_W-1:0];
         end
@@ -152,7 +149,7 @@ module icache (
       readValid = 1'b1;
       if (hit_found) begin
         is_hit = 1'b1;
-        rdata  = sets[index][hit_way][DATA_W-1:0];
+        rdata  = sets[index][hit_way].data;
       end
     end
   end
