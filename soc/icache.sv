@@ -78,11 +78,11 @@ module icache (
 
 `ifdef verilator
 import "DPI-C" context task icache_perf_measure(input bit is_hit);
-import "DPI-C" context task icache_perf_reset();
+import "DPI-C" context task icache_perf_reset(input integer unsigned sets, input integer unsigned ways, input integer unsigned line_bytes);
 
 always_ff @(posedge clock or posedge reset) begin
   if (reset) begin
-    icache_perf_reset();
+    icache_perf_reset(SETS, WAYS, DATA_B);
   end
   else begin
     icache_perf_measure(is_hit);

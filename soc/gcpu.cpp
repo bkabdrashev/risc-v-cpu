@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <assert.h>
 #include "mem_map.h"
+#include "cachesim.cpp"
 
 #define ALU_OP_ADD  (0b0000)
 #define ALU_OP_SUB  (0b1000) 
@@ -98,6 +99,7 @@ struct VSoCcpu {
 
   VEventCounts event_counts;
   uint64_t minstret_start;
+  Cachesim icachesim;
 };
 
 struct Gcpu {

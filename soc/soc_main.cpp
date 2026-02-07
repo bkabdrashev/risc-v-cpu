@@ -17,7 +17,6 @@
 
 #include "riscv.cpp"
 #include "gcpu.cpp"
-#include "cachesim.cpp"
 
 typedef VysyxSoCTop VSoC;
 
@@ -431,8 +430,9 @@ extern "C" void exu_perf_measure(svBit is_ebreak,
   if (is_branch_taken) dpi_testbench->vsoc_cpu->event_counts.mbranch_taken += 1;
 }
 
-extern "C" void icache_perf_reset() {
+extern "C" void icache_perf_reset(uint32_t sets, uint32_t ways, uint32_t line_bytes) {
   dpi_testbench->vsoc_cpu->event_counts.micache_hits   = 0;
+  dpi_testbench->vsoc_cpu->icachesim = new_cachesim(sets, ways, line_bytes);
 }
 
 extern "C" void icache_perf_measure(svBit is_hit) {
@@ -985,7 +985,6 @@ bool test_instructions(TestBench* tb) {
   tb->vcpu_ticks  = 1;
 
   bool is_test_success = true;
-  Cachesim sim = new_cachesim(256, 1, 4);
   while (1) {
     uint32_t pc = 0;
     uint32_t inst = 0;
@@ -999,8 +998,8 @@ bool test_instructions(TestBench* tb) {
     }
     else if (tb->is_vsoc) {
       pc = tb->vsoc_cpu->pc;
+      cachesim_eval(&tb->vsoc_cpu->icachesim, pc, tb->instrets);
     }
-    cachesim_eval(&sim, pc, tb->instrets);
     tb->instrets++;
 
     if (tb->is_vsoc) {
@@ -1128,7 +1127,7 @@ bool test_instructions(TestBench* tb) {
   }
 
   if (tb->is_vsoc) {
-    print_finished_stat(tb, "vsoc", tb->vsoc_cpu->event_counts, sim);
+    print_finished_stat(tb, "vsoc", tb->vsoc_cpu->event_counts, tb->vsoc_cpu->icachesim);
   }
   if (tb->is_vcpu) {
     // print_finished_stat(tb, "vcpu", tb->vcpu_cpu->event_counts);
