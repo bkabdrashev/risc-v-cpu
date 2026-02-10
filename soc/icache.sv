@@ -10,7 +10,7 @@ module icache (
   output logic [31:0] rdata);
 
   localparam SETS   = 256;
-  localparam WAYS   = 1;
+  localparam WAYS   = 1; // NOTE: ways isn't used, because yosys generates much worse netlist when I tried to use WAYS in any way
   localparam DATA_B = 4;
   localparam DATA_W = 8 * DATA_B;
   localparam LINES  = SETS * WAYS;
