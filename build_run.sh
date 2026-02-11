@@ -38,7 +38,7 @@ cd "$RTL_ROOT"
 
 verilator --trace -cc \
   -Wall \
-  -I"$RTL_ROOT/soc" \
+  -I"$RTL_ROOT/rlt" \
   soc/cpu.sv \
   soc/rf.sv soc/pc.sv soc/exu.sv soc/idu.sv soc/alu.sv soc/csr.sv soc/com.sv soc/icache.sv \
   --timescale "1ns/1ns" \
@@ -76,7 +76,7 @@ g++ -std=c++17 -g \
   -I"$OBJ_CPU" -I"$OBJ_SOC" \
   -I"$VERILATOR_ROOT/include" \
   -I"$VERILATOR_ROOT/include/vltstd" \
-  soc/soc_main.cpp \
+  rtl/soc_main.cpp \
   "$OBJ_SOC/libVysyxSoCTop.a" "$OBJ_CPU/libVcpu.a" \
   libverilated.a \
   -o "$TB_BIN"

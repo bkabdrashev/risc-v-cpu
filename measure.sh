@@ -4,7 +4,7 @@ ROOT_DIR="$(pwd)"
 MEASURE_TEMP="${ROOT_DIR}/__temp_measure.txt"
 MEASURE_CSV="${ROOT_DIR}/measure.csv"
 FREQ_TEMP="${ROOT_DIR}/__temp_freq.txt"
-DEVICE_DELAY_FILE="${ROOT_DIR}/soc/freq_defines.vh"
+DEVICE_DELAY_FILE="${ROOT_DIR}/rtl/freq_defines.vh"
 
 printf "%s,%s,%s," "$(git rev-parse HEAD)" "$(date +"%Y-%m-%dT%H:%M:%S")" "text" > "$MEASURE_TEMP"
 
