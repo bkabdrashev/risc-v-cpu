@@ -31,6 +31,14 @@ module core (
   input  [31:0] io_master_rdata,
   input         io_master_rlast,
   input  [ 3:0] io_master_rid,
+  output        io_master_awlock,
+  output [ 3:0] io_master_awcache,
+  output [ 2:0] io_master_awprot,
+  output [ 3:0] io_master_awqos,
+  output        io_master_arlock,
+  output [ 3:0] io_master_arcache,
+  output [ 2:0] io_master_arprot,
+  output [ 3:0] io_master_arqos,
 
   output        io_slave_awready,
   input         io_slave_awvalid,
@@ -61,25 +69,14 @@ module core (
   output [31:0] io_slave_rdata,
   output        io_slave_rresp,
   output [ 3:0] io_slave_rlast,
-
-    io_master_awlock, ?
-   io_master_awcache, ?
-   io_master_awprot, ?
-   io_master_awqos, ?
-    io_master_arlock, ?
-     io_master_arcache, ?
-     io_master_arprot, ?
-     io_master_arqos, ?
-
-    io_slave_awlock,  ?
-    io_slave_awcache,  ?
-    io_slave_awprot,  ?
-    io_slave_awqos,  ?
-    io_slave_arlock, ?
-    io_slave_arcache, ?
-    io_slave_arprot, ?
-    io_slave_arqos ?
-    );
+  input         io_slave_awlock, 
+  input  [ 3:0] io_slave_awcache, 
+  input  [ 2:0] io_slave_awprot, 
+  input  [ 3:0] io_slave_awqos, 
+  input         io_slave_arlock,
+  input  [ 3:0] io_slave_arcache,
+  input  [ 2:0] io_slave_arprot,
+  input  [ 3:0] io_slave_arqos);
 
 /* verilator lint_off UNUSEDPARAM */
 `include "com_defines.vh"
