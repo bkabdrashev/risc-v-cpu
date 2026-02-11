@@ -2,6 +2,7 @@ module core (
   input         clock,
   input         reset,
   input         io_interrupt,
+
   input         io_master_awready,
   output        io_master_awvalid,
   output [31:0] io_master_awaddr,
@@ -9,36 +10,40 @@ module core (
   output [ 7:0] io_master_awlen,
   output [ 2:0] io_master_awsize,
   output [ 1:0] io_master_awburst,
+  output        io_master_awlock,
+  output [ 3:0] io_master_awcache,
+  output [ 2:0] io_master_awprot,
+  output [ 3:0] io_master_awqos,
+
   input         io_master_wready,
   output        io_master_wvalid,
   output [31:0] io_master_wdata,
   output [ 3:0] io_master_wstrb,
   output        io_master_wlast,
+
   output        io_master_bready,
   input         io_master_bvalid,
   input  [ 1:0] io_master_bresp,
   input  [ 3:0] io_master_bid,
+
   input         io_master_arready,
   output        io_master_arvalid,
   output [31:0] io_master_araddr,
   output [ 3:0] io_master_arid,
   output [ 7:0] io_master_arlen,
   output [ 2:0] io_master_arsize,
-  output [ 1:0]  io_master_arburst,
+  output [ 1:0] io_master_arburst,
+  output        io_master_arlock,
+  output [ 3:0] io_master_arcache,
+  output [ 2:0] io_master_arprot,
+  output [ 3:0] io_master_arqos,
+
   output        io_master_rready,
   input         io_master_rvalid,
   input  [ 1:0] io_master_rresp,
   input  [31:0] io_master_rdata,
   input         io_master_rlast,
   input  [ 3:0] io_master_rid,
-  output        io_master_awlock,
-  output [ 3:0] io_master_awcache,
-  output [ 2:0] io_master_awprot,
-  output [ 3:0] io_master_awqos,
-  output        io_master_arlock,
-  output [ 3:0] io_master_arcache,
-  output [ 2:0] io_master_arprot,
-  output [ 3:0] io_master_arqos,
 
   output        io_slave_awready,
   input         io_slave_awvalid,
@@ -47,6 +52,10 @@ module core (
   input  [ 7:0] io_slave_awlen,
   input  [ 2:0] io_slave_awsize,
   input  [ 1:0] io_slave_awburst,
+  input         io_slave_awlock, 
+  input  [ 3:0] io_slave_awcache, 
+  input  [ 2:0] io_slave_awprot, 
+  input  [ 3:0] io_slave_awqos,
   output        io_slave_wready,
   input         io_slave_wvalid,
   input  [31:0] io_slave_wdata,
@@ -63,20 +72,29 @@ module core (
   input  [ 7:0] io_slave_arlen,
   input  [ 2:0] io_slave_arsize,
   input  [ 1:0] io_slave_arburst,
+  input         io_slave_arlock,
+  input  [ 3:0] io_slave_arcache,
+  input  [ 2:0] io_slave_arprot,
+  input  [ 3:0] io_slave_arqos,
   input         io_slave_rready,
   output        io_slave_rvalid,
   output [ 1:0] io_slave_rid,
   output [31:0] io_slave_rdata,
   output        io_slave_rresp,
-  output [ 3:0] io_slave_rlast,
-  input         io_slave_awlock, 
-  input  [ 3:0] io_slave_awcache, 
-  input  [ 2:0] io_slave_awprot, 
-  input  [ 3:0] io_slave_awqos, 
-  input         io_slave_arlock,
-  input  [ 3:0] io_slave_arcache,
-  input  [ 2:0] io_slave_arprot,
-  input  [ 3:0] io_slave_arqos);
+  output [ 3:0] io_slave_rlast);
+
+  assign io_slave_awready = 1'h0;
+  assign io_slave_wready  = 1'h0;
+  assign io_slave_bvalid  = 1'h0;
+  assign io_slave_bid     = 4'h0;
+  assign io_slave_bresp   = 2'h0;
+  assign io_slave_arready = 1'h0;
+  assign io_slave_rvalid  = 1'h0;
+  assign io_slave_rid     = 4'h0;
+  assign io_slave_rdata   = 32'h0;
+  assign io_slave_rresp   = 2'h0;
+  assign io_slave_rlast   = 1'h0;
+  
 
 /* verilator lint_off UNUSEDPARAM */
 `include "com_defines.vh"
