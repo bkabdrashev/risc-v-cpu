@@ -1,6 +1,8 @@
 YOSYS_PATH="yosys-sta"
 MICROBENCH_PATH="am-kernels/benchmarks/microbench"
 ROOT_DIR="$(pwd)"
+AM_HOME="${ROOT_DIR}/abstract-machine"
+BENCH_HOME="${ROOT_DIR}/archbench"
 MEASURE_TEMP="${ROOT_DIR}/__temp_measure.txt"
 MEASURE_CSV="${ROOT_DIR}/measure.csv"
 FREQ_TEMP="${ROOT_DIR}/__temp_freq.txt"
